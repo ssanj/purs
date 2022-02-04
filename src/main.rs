@@ -20,7 +20,7 @@ async fn main() -> octocrab::Result<()> {
     let result = get_dummy_prs();
     let length = result.len();
 
-    for (index, pr) in result.into_iter().enumerate() {
+    for (index, pr) in result.clone().into_iter().enumerate() {
         println!("{:>2} - {}", index + 1, pr);
     }
 
@@ -28,7 +28,10 @@ async fn main() -> octocrab::Result<()> {
         Ok(response) => {
             println!("You said: {:?}", response);
             match response {
-                UserSelection::Number(selection) => println!("{} is a valid selection", selection),
+                UserSelection::Number(selection) => {
+                    let selected = result.get(usize::from(selection - 1)).expect("Invalid index");
+                    println!("git clone {:?} -b {}", &selected.ssh_url, &selected.branch_name)
+                },
                 UserSelection::Quit => println!("Goodbye!"),
             }
         },
