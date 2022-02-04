@@ -1,62 +1,150 @@
-use octocrab::{self, OctocrabBuilder};
+use octocrab::{self, OctocrabBuilder, Octocrab};
 use octocrab::params;
+use crate::model::*;
+use std::io::{self, BufRead};
+
+mod model;
 
 #[tokio::main]
 async fn main() -> octocrab::Result<()> {
 
     let token = std::env::var("GH_ACCESS_TOKEN").expect("Could not find Github Personal Access Token");
 
-    let octocrab =
-        OctocrabBuilder::new()
-        .personal_token(token)
-        .build()?;
+    // let octocrab =
+    //     OctocrabBuilder::new()
+    //     .personal_token(token)
+    //     .build()?;
 
-    // Returns the first page of all issues.
-    let page = octocrab
-    .pulls("XAMPPRocky", "octocrab")
-    .list()
-    // Optional Parameters
-    .state(params::State::Open)
-    .sort(params::pulls::Sort::Created)
-    .direction(params::Direction::Descending)
-    .per_page(50)
-    .send()
-    .await?;
 
-    for (index, pull) in page.into_iter().enumerate() {
-        let title = pull.title.clone().unwrap_or("-".to_string());
-        let pr_no = pull.number;
-        // let diff_url = pull.diff_url.clone().map(|u| u.to_string()).unwrap_or("-".to_string());
-        let ssh_url = pull.head.repo.clone().and_then(|r| (r.ssh_url));
-        let brach_name = pull.head.ref_field;
-        let pull_req =
-            PullRequest {
-                title,
-                pr_number: pr_no,
-                ssh_url,
-                brach_name
-            };
+    // let result = get_prs(&octocrab).await?;
+    let result = get_dummy_prs();
+    let length = result.len();
 
-        println!("{:>2} - {}", index, pull_req);
+    for (index, pr) in result.into_iter().enumerate() {
+        println!("{:>2} - {}", index + 1, pr);
+    }
+
+    match read_user_response("Please select a PR to clone to 'q' to exit", length) {
+        Ok(response) => {
+            println!("You said: {:?}", response);
+            match response {
+                UserSelection::Number(selection) => println!("{} is a valid selection", selection),
+                UserSelection::Quit => println!("Goodbye!"),
+            }
+        },
+        Err(e) => match e {
+            UserInputError::InvalidNumber(invalid) => println!("{} is not a valid number", invalid),
+            UserInputError::InvalidSelection { selected, min_selection, max_selection } => println!("{} is not a number between [{} - {}]", selected, min_selection, max_selection),
+        }
     }
 
     Ok(())
 }
 
-#[derive(Debug)]
-struct PullRequest {
-    title : String,
-    pr_number : u64,
-    ssh_url: Option<String>,
-    brach_name: String
-}
-
-impl std::fmt::Display for PullRequest {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}, [{}] {}", self.title, self.pr_number, if self.ssh_url.is_none()  { "x" } else { "v" })
+enum UserInputError {
+    InvalidNumber(String),
+    InvalidSelection{
+        selected: u8,
+        min_selection: u8,
+        max_selection: usize
     }
 }
 
 
+fn read_user_response(question: &str, limit: usize) -> Result<UserSelection, UserInputError> {
+  println!("{}", question);
+  let mut buffer = String::new();
+  let stdin = io::stdin();
+  let mut handle = stdin.lock();
+  handle.read_line(&mut buffer).expect("Could not read from input");
+
+  let line = buffer.lines().next().expect("Could not extract line");
+
+  match &line[..] {
+     "q" | "Q" => Ok(UserSelection::Quit),
+     num =>
+        num.parse::<u8>()
+        .map_err( |_| UserInputError::InvalidNumber(num.to_string()))
+        .and_then(|n| {
+            let input = usize::from(n);
+            if  input <= 0 || input > limit {
+                Err(
+                    UserInputError::InvalidSelection {
+                        selected: n,
+                        min_selection: 1,
+                        max_selection: limit
+                    }
+                )
+            } else {
+                Ok(UserSelection::Number(n))
+            }
+        }),
+  }
+}
+
+// fn invalid_input(e: std::num::ParseIntError) -> io::Error {
+//     io::Error::new(io::ErrorKind::InvalidInput, e)
+// }
+
+// fn invalid_range(e: std::num::ParseIntError) -> io::Error {
+//     io::Error::new(io::ErrorKind::InvalidInput, e)
+// }
+
+// async fn get_prs(octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
+
+//     let page = octocrab
+//     .pulls("XAMPPRocky", "octocrab")
+//     .list()
+//     // Optional Parameters
+//     .state(params::State::Open)
+//     .sort(params::pulls::Sort::Created)
+//     .direction(params::Direction::Descending)
+//     .per_page(50)
+//     .send()
+//     .await?;
+
+//     let results =
+//         page.into_iter().map (|pull| {
+//             let title = pull.title.clone().unwrap_or("-".to_string());
+//             let pr_no = pull.number;
+//             // let diff_url = pull.diff_url.clone().map(|u| u.to_string()).unwrap_or("-".to_string());
+//             let ssh_url = pull.head.repo.clone().and_then(|r| (r.ssh_url));
+//             let branch_name = pull.head.ref_field;
+
+//             PullRequest {
+//                 title,
+//                 pr_number: pr_no,
+//                 ssh_url,
+//                 branch_name
+//             }
+//         })
+//         .collect::<Vec<PullRequest>>();
+
+//     Ok(results)
+// }
 
 
+
+fn get_dummy_prs() -> Vec<PullRequest> {
+    vec![
+        PullRequest {
+            title: "TITLE1".to_string(),
+            pr_number: 100,
+            ssh_url: Some("ssh1".to_string()),
+            branch_name: "branch1".to_string()
+        },
+        PullRequest {
+            title: "TITLE2".to_string(),
+            pr_number: 200,
+            ssh_url: Some("ssh2".to_string()),
+            branch_name: "branch2".to_string()
+        },
+        PullRequest {
+            title: "TITLE3".to_string(),
+            pr_number: 300,
+            ssh_url: Some("ssh3".to_string()),
+            branch_name: "branch3".to_string()
+        }
+    ]
+
+}
