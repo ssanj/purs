@@ -2,6 +2,10 @@ use octocrab::{self, OctocrabBuilder, Octocrab};
 use octocrab::params;
 use crate::model::*;
 use std::io::{self, BufRead};
+use std::path::Path;
+use std::process::Command;
+use ansi_term::Colour;
+
 
 mod model;
 
@@ -9,6 +13,7 @@ mod model;
 async fn main() -> octocrab::Result<()> {
 
     let token = std::env::var("GH_ACCESS_TOKEN").expect("Could not find Github Personal Access Token");
+    let config = Config{ working_dir: Path::new("/Users/sanj/ziptemp/prs") };
 
     let octocrab =
         OctocrabBuilder::new()
@@ -32,7 +37,11 @@ async fn main() -> octocrab::Result<()> {
                     let selected = result.get(usize::from(selection - 1)).expect("Invalid index");
                     println!("git clone {:?} -b {}", &selected.ssh_url, &selected.branch_name);
                     println!("sha: {}", &selected.head_sha);
-                    println!("dir: {}", get_extract_path(&selected, Config{ working_dir: "some_working_dir".to_string() }))
+                    match clone_branch(&config, &selected) {
+                      Ok(CmdOutput(Some(stdout))) => println!("{}", stdout),
+                      Ok(CmdOutput(None)) => {},
+                      Err(e) => print_error(e.to_string())
+                    }
                 },
                 UserSelection::Quit => println!("Goodbye!"),
             }
@@ -87,23 +96,61 @@ fn read_user_response(question: &str, limit: usize) -> Result<UserSelection, Use
   }
 }
 
-struct Config {
-    working_dir: String
+struct CmdOutput(Option<String>);
+
+
+fn clone_branch(config: &Config, pull: &PullRequest) -> io::Result<CmdOutput> {
+  match &pull.ssh_url {
+      Some(ssh_url) => {
+          let checkout_path = get_extract_path(&config, &pull);
+
+          println!("checkout path: {}", checkout_path);
+          let mut command = Command::new("git") ;
+            command
+            .arg("clone")
+            .arg(ssh_url)
+            .arg("-b")
+            // .arg(pull.branch_name.as_str())
+            .arg(checkout_path.as_str());
+
+          let result = command.output();
+
+          match command.status() {
+             Ok(exit_code) => {
+              if exit_code.success() {
+                let output = result.map(|r| String::from_utf8_lossy(&r.stdout).to_string());
+                Ok(CmdOutput(output.ok()))
+              } else {
+                let command_error=
+                  result
+                  .map(|r| {
+                    String::from_utf8_lossy(&r.stderr).to_string()
+                  });
+
+                let error_message = format!("Failed executing clone: {}", command_error.unwrap_or("<Could not retrieve stderr>".to_string()));
+                Err(io::Error::new(io::ErrorKind::Other, error_message))
+              }
+            },
+             Err(e) => {
+              let error_message = format!("Failed executing clone: {}", e);
+              Err(io::Error::new(io::ErrorKind::Other, error_message))
+            }
+          }
+
+      },
+      None => Err(io::Error::new(io::ErrorKind::Other, "Can't clone branch without SSH url"))
+  }
 }
 
-fn get_extract_path(pull: &PullRequest, config: Config) -> String {
+struct Config <'a> {
+    working_dir: &'a Path
+}
+
+fn get_extract_path(config: &Config, pull: &PullRequest) -> String {
     let repo_name = pull.repo_name.clone().unwrap_or("default".to_string());
     let separator = format!("{}", std::path::MAIN_SEPARATOR);
-    vec![config.working_dir, repo_name, pull.branch_name.clone(), pull.head_sha.clone()].join(&separator).to_string()
+    vec![config.working_dir.to_string_lossy().to_string(), repo_name, pull.branch_name.clone(), pull.head_sha.clone()].join(&separator).to_string()
 }
-
-// fn invalid_input(e: std::num::ParseIntError) -> io::Error {
-//     io::Error::new(io::ErrorKind::InvalidInput, e)
-// }
-
-// fn invalid_range(e: std::num::ParseIntError) -> io::Error {
-//     io::Error::new(io::ErrorKind::InvalidInput, e)
-// }
 
 async fn get_prs(octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
 
@@ -171,3 +218,9 @@ fn get_dummy_prs() -> Vec<PullRequest> {
     ]
 
 }
+
+pub fn print_error(message: String) {
+  let coloured_error = Colour::Red.paint(format!("Error: {}", message));
+  println!("{}", coloured_error)
+}
+
