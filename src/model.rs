@@ -21,3 +21,42 @@ pub enum UserSelection {
     Number(u8),
     Quit
 }
+
+
+pub struct CmdOutput {
+  pub stdout: Option<String>,
+  pub stderr: Option<String>,
+}
+
+// impl fmt::Display for CmdOutput {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         writeln!(f, "stdout: {}", self.stdout.as_ref().unwrap_or(&"-".to_string()))?;
+//         writeln!(f, "stderr: {}", self.stderr.as_ref().unwrap_or(&"-".to_string()))
+//     }
+// }
+
+
+
+impl CmdOutput {
+
+  pub fn new(stdout: Option<String>, stderr: Option<String>) -> CmdOutput {
+    CmdOutput {
+      stdout,
+      stderr,
+    }
+  }
+
+  pub fn with_stdout(stdout: Option<String>) -> CmdOutput {
+    CmdOutput {
+      stdout,
+      stderr: None,
+    }
+  }
+
+  pub fn with_stderr(stderr: Option<String>) -> CmdOutput {
+    CmdOutput {
+      stdout: None,
+      stderr,
+    }
+  }
+}

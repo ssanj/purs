@@ -37,11 +37,10 @@ async fn main() -> octocrab::Result<()> {
                     let selected = result.get(usize::from(selection - 1)).expect("Invalid index");
                     println!("git clone {:?} -b {}", &selected.ssh_url, &selected.branch_name);
                     println!("sha: {}", &selected.head_sha);
-                    match clone_branch(&config, &selected) {
-                      Ok(CmdOutput(Some(stdout))) => println!("{}", stdout),
-                      Ok(CmdOutput(None)) => {},
-                      Err(e) => print_error(e.to_string())
-                    }
+                    clone_branch(&config, &selected).unwrap()// {
+                    //   Ok(output) => {}, //println!("{}", output),
+                    //   Err(e) => {}//print_error(e.to_string())
+                    // }
                 },
                 UserSelection::Quit => println!("Goodbye!"),
             }
@@ -96,10 +95,8 @@ fn read_user_response(question: &str, limit: usize) -> Result<UserSelection, Use
   }
 }
 
-struct CmdOutput(Option<String>);
 
-
-fn clone_branch(config: &Config, pull: &PullRequest) -> io::Result<CmdOutput> {
+fn clone_branch(config: &Config, pull: &PullRequest) -> io::Result<()> {
   match &pull.ssh_url {
       Some(ssh_url) => {
           let checkout_path = get_extract_path(&config, &pull);
@@ -113,33 +110,27 @@ fn clone_branch(config: &Config, pull: &PullRequest) -> io::Result<CmdOutput> {
             // .arg(pull.branch_name.as_str())
             .arg(checkout_path.as_str());
 
-          let result = command.output();
-
-          match command.status() {
-             Ok(exit_code) => {
-              if exit_code.success() {
-                let output = result.map(|r| String::from_utf8_lossy(&r.stdout).to_string());
-                Ok(CmdOutput(output.ok()))
-              } else {
-                let command_error=
-                  result
-                  .map(|r| {
-                    String::from_utf8_lossy(&r.stderr).to_string()
-                  });
-
-                let error_message = format!("Failed executing clone: {}", command_error.unwrap_or("<Could not retrieve stderr>".to_string()));
-                Err(io::Error::new(io::ErrorKind::Other, error_message))
-              }
-            },
-             Err(e) => {
-              let error_message = format!("Failed executing clone: {}", e);
-              Err(io::Error::new(io::ErrorKind::Other, error_message))
-            }
-          }
+          get_process_output(&mut command)
 
       },
       None => Err(io::Error::new(io::ErrorKind::Other, "Can't clone branch without SSH url"))
   }
+}
+
+fn get_process_output(command: &mut Command) -> io::Result<()> {
+    let result = command.output();
+
+    let l = result.and_then(|r|{
+      command.status().map(|_|{
+          //access stdout/stderr leads to it being written to the console
+          //so we can just not return these values as they have already been written out
+          let output = String::from_utf8_lossy(&r.stdout).to_string();
+          let error = String::from_utf8_lossy(&r.stderr).to_string();
+          CmdOutput::new(Some(output), Some(error))
+      })
+    });
+
+    l.map(|_| ())
 }
 
 struct Config <'a> {
