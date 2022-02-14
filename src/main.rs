@@ -35,12 +35,7 @@ async fn main() -> octocrab::Result<()> {
             match response {
                 UserSelection::Number(selection) => {
                     let selected = result.get(usize::from(selection - 1)).expect("Invalid index");
-                    println!("git clone {:?} -b {}", &selected.ssh_url, &selected.branch_name);
-                    println!("sha: {}", &selected.head_sha);
-                    clone_branch(&config, &selected).unwrap()// {
-                    //   Ok(output) => {}, //println!("{}", output),
-                    //   Err(e) => {}//print_error(e.to_string())
-                    // }
+                    clone_branch(&config, &selected).unwrap()
                 },
                 UserSelection::Quit => println!("Goodbye!"),
             }
@@ -100,37 +95,53 @@ fn clone_branch(config: &Config, pull: &PullRequest) -> io::Result<()> {
   match &pull.ssh_url {
       Some(ssh_url) => {
           let checkout_path = get_extract_path(&config, &pull);
-
-          println!("checkout path: {}", checkout_path);
+          print_info(format!("git clone {} -b {} {}", ssh_url, pull.branch_name.as_str(), checkout_path.as_str()));
           let mut command = Command::new("git") ;
             command
             .arg("clone")
             .arg(ssh_url)
             .arg("-b")
-            // .arg(pull.branch_name.as_str())
+            .arg(pull.branch_name.as_str())
             .arg(checkout_path.as_str());
 
-          get_process_output(&mut command)
+          let output = get_process_output(&mut command);
 
+          match output {
+            Ok(CmdOutput::Success) => {
+                Ok(())
+            },
+            Ok(CmdOutput::Failure(exit_code)) => {
+                match exit_code {
+                    ExitCode::Code(code) => print_error(format!("Git exited with exit code: {}", code)),
+                    ExitCode::Terminated => print_error("Git was terminated".to_string()),
+                }
+
+                Ok(())
+            },
+            Err(e) => {
+                eprintln!("Could not run Git: {}", e);
+                Ok(())
+            },
+          }
       },
       None => Err(io::Error::new(io::ErrorKind::Other, "Can't clone branch without SSH url"))
   }
 }
 
-fn get_process_output(command: &mut Command) -> io::Result<()> {
-    let result = command.output();
+fn get_process_output(command: &mut Command) -> io::Result<CmdOutput> {
+    let result = command.status();
 
-    let l = result.and_then(|r|{
-      command.status().map(|_|{
-          //access stdout/stderr leads to it being written to the console
-          //so we can just not return these values as they have already been written out
-          let output = String::from_utf8_lossy(&r.stdout).to_string();
-          let error = String::from_utf8_lossy(&r.stderr).to_string();
-          CmdOutput::new(Some(output), Some(error))
-      })
+    let l = result.map(|r|{
+        if r.success() {
+            CmdOutput::Success
+        } else {
+            r.code()
+            .map(|c| CmdOutput::Failure(ExitCode::Code(c)))
+            .unwrap_or(CmdOutput::Failure(ExitCode::Terminated))
+        }
     });
 
-    l.map(|_| ())
+    l
 }
 
 struct Config <'a> {
@@ -213,5 +224,10 @@ fn get_dummy_prs() -> Vec<PullRequest> {
 pub fn print_error(message: String) {
   let coloured_error = Colour::Red.paint(format!("Error: {}", message));
   println!("{}", coloured_error)
+}
+
+pub fn print_info(message: String) {
+  let coloured_info = Colour::Green.paint(format!("{}", message));
+  println!("{}", coloured_info)
 }
 

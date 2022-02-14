@@ -23,40 +23,12 @@ pub enum UserSelection {
 }
 
 
-pub struct CmdOutput {
-  pub stdout: Option<String>,
-  pub stderr: Option<String>,
+pub enum CmdOutput {
+  Success,
+  Failure(ExitCode),
 }
 
-// impl fmt::Display for CmdOutput {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         writeln!(f, "stdout: {}", self.stdout.as_ref().unwrap_or(&"-".to_string()))?;
-//         writeln!(f, "stderr: {}", self.stderr.as_ref().unwrap_or(&"-".to_string()))
-//     }
-// }
-
-
-
-impl CmdOutput {
-
-  pub fn new(stdout: Option<String>, stderr: Option<String>) -> CmdOutput {
-    CmdOutput {
-      stdout,
-      stderr,
-    }
-  }
-
-  pub fn with_stdout(stdout: Option<String>) -> CmdOutput {
-    CmdOutput {
-      stdout,
-      stderr: None,
-    }
-  }
-
-  pub fn with_stderr(stderr: Option<String>) -> CmdOutput {
-    CmdOutput {
-      stdout: None,
-      stderr,
-    }
-  }
+pub enum ExitCode {
+    Code(i32),
+    Terminated
 }
