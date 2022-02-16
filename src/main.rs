@@ -257,6 +257,8 @@ pub fn print_info(message: String) {
 fn write_file_out<P>(filename: P, working_dir: &str, pull: &PullRequest) -> io::Result<()>
 where P: AsRef<Path> + Copy {
     let lines = read_lines(filename).expect(&format!("Could not read lines from {}", filename.as_ref().to_string_lossy()));
+
+    let mut files_to_open = vec![];
     for line_r in lines {
         let file = line_r.expect("Could not read line");
         let path = Path::new(working_dir).join(format!("{}.diff", file));
@@ -268,11 +270,23 @@ where P: AsRef<Path> + Copy {
          .stdout(diff_file)
          .arg("diff")
          .arg(format!("{}..{}", &pull.base_sha, &pull.head_sha))
-         .arg(file);
+         .arg(&file);
 
          diff_command.status().expect(&format!("Could not write out file: {}", path.as_path().to_string_lossy()));
+         files_to_open.push(path);
     }
 
+    let mut sublime_command = Command::new("s");
+    sublime_command
+    .arg(working_dir)
+    .arg("-n");
+
+    files_to_open.iter().for_each(|f| {
+        sublime_command.arg(f);
+    });
+
+
+    sublime_command.status().expect("Could not launch Sublime Text");
     Ok(())
 }
 
