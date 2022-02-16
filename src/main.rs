@@ -120,11 +120,11 @@ fn clone_branch(config: &Config, pull: &PullRequest) -> io::Result<()> {
                  .stdout(file_list)
                  .arg("diff")
                  .arg("--name-only")
-                 .arg(format!("{}..{}", &pull.head_sha, &pull.base_sha));
+                 .arg(format!("{}..{}", &pull.base_sha, &pull.head_sha));
 
                 let result = diff_command.status();
                 result.expect("Could not generate diff file list");
-                write_file_out(&file_list_path);
+                write_file_out(&file_list_path, checkout_path.as_str(), &pull).expect("Could not write out file list");
 
                 Ok(())
             },
@@ -254,14 +254,23 @@ pub fn print_info(message: String) {
   println!("{}", coloured_info)
 }
 
-fn write_file_out<P>(filename: P) -> io::Result<()>
-where P: AsRef<Path> {
-    if let Ok(lines) = read_lines(filename) {
-        for lineR in lines {
-            if let Ok(line) = lineR {
-                println!("Line: {}", line)
-            }
-        }
+fn write_file_out<P>(filename: P, working_dir: &str, pull: &PullRequest) -> io::Result<()>
+where P: AsRef<Path> + Copy {
+    let lines = read_lines(filename).expect(&format!("Could not read lines from {}", filename.as_ref().to_string_lossy()));
+    for line_r in lines {
+        let file = line_r.expect("Could not read line");
+        let path = Path::new(working_dir).join(format!("{}.diff", file));
+        let diff_file = File::create(&path).expect(&format!("Could not create file: {}", path.as_path().to_string_lossy()));
+
+        let mut diff_command = Command::new("git");
+        diff_command
+         .current_dir(working_dir)
+         .stdout(diff_file)
+         .arg("diff")
+         .arg(format!("{}..{}", &pull.base_sha, &pull.head_sha))
+         .arg(file);
+
+         diff_command.status().expect(&format!("Could not write out file: {}", path.as_path().to_string_lossy()));
     }
 
     Ok(())
