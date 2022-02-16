@@ -5,7 +5,7 @@ use std::io::{self, BufRead};
 use std::path::Path;
 use std::process::Command;
 use ansi_term::Colour;
-
+use std::fs::File;
 
 mod model;
 
@@ -108,6 +108,24 @@ fn clone_branch(config: &Config, pull: &PullRequest) -> io::Result<()> {
 
           match output {
             Ok(CmdOutput::Success) => {
+                println!("Generating diff files...");
+
+                let file_list_path = Path::new(checkout_path.as_str()).join("diff_file_list.txt");
+                let file_list = File::create(&file_list_path) .unwrap();
+
+
+                let mut diff_command = Command::new("git");
+                diff_command
+                 .current_dir(checkout_path.as_str())
+                 .stdout(file_list)
+                 .arg("diff")
+                 .arg("--name-only")
+                 .arg(format!("{}..{}", &pull.head_sha, &pull.base_sha));
+
+                let result = diff_command.status();
+                result.expect("Could not generate diff file list");
+                write_file_out(&file_list_path);
+
                 Ok(())
             },
             Ok(CmdOutput::Failure(exit_code)) => {
@@ -176,6 +194,7 @@ async fn get_prs(octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
             let head_sha = pull.head.sha;
             let repo_name = pull.head.repo.clone().and_then(|r| r.full_name);
             let branch_name = pull.head.ref_field;
+            let base_sha = pull.base.sha;
 
             PullRequest {
                 title,
@@ -183,7 +202,8 @@ async fn get_prs(octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
                 ssh_url,
                 branch_name,
                 head_sha,
-                repo_name
+                repo_name,
+                base_sha
             }
         })
         .collect::<Vec<PullRequest>>();
@@ -200,6 +220,7 @@ fn get_dummy_prs() -> Vec<PullRequest> {
             repo_name: Some("repo1".to_string()),
             branch_name: "branch1".to_string(),
             head_sha: "sha1".to_string(),
+            base_sha: "base-sha1".to_string(),
         },
         PullRequest {
             title: "TITLE2".to_string(),
@@ -208,6 +229,7 @@ fn get_dummy_prs() -> Vec<PullRequest> {
             repo_name: Some("repo2".to_string()),
             branch_name: "branch2".to_string(),
             head_sha: "sha2".to_string(),
+            base_sha: "base-sha2".to_string(),
         },
         PullRequest {
             title: "TITLE3".to_string(),
@@ -216,6 +238,7 @@ fn get_dummy_prs() -> Vec<PullRequest> {
             repo_name: Some("repo3".to_string()),
             branch_name: "branch3".to_string(),
             head_sha: "sha3".to_string(),
+            base_sha: "base-sha3".to_string(),
         }
     ]
 
@@ -229,5 +252,24 @@ pub fn print_error(message: String) {
 pub fn print_info(message: String) {
   let coloured_info = Colour::Green.paint(format!("{}", message));
   println!("{}", coloured_info)
+}
+
+fn write_file_out<P>(filename: P) -> io::Result<()>
+where P: AsRef<Path> {
+    if let Ok(lines) = read_lines(filename) {
+        for lineR in lines {
+            if let Ok(line) = lineR {
+                println!("Line: {}", line)
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
+where P: AsRef<Path>, {
+    let file = File::open(filename)?;
+    Ok(io::BufReader::new(file).lines())
 }
 

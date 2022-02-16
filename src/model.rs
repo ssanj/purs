@@ -7,7 +7,8 @@ pub struct PullRequest {
     pub ssh_url: Option<String>,
     pub repo_name: Option<String>,
     pub branch_name: String,
-    pub head_sha: String
+    pub head_sha: String,
+    pub base_sha: String,
 }
 
 impl fmt::Display for PullRequest {
