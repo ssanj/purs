@@ -1,4 +1,5 @@
 use std::fmt;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct PullRequest {
@@ -32,4 +33,43 @@ pub enum CmdOutput {
 pub enum ExitCode {
     Code(i32),
     Terminated
+}
+
+#[derive(Clone)]
+pub struct Owner(pub String);
+
+#[derive(Clone)]
+pub struct Repo(pub String);
+
+#[derive(Clone)]
+pub struct OwnerRepo(pub Owner, pub Repo);
+
+pub struct NonEmptyVec<T> {
+    first: T,
+    rest: Vec<T>
+}
+
+impl <T: Clone> NonEmptyVec<T> {
+    pub fn one(first: T) -> NonEmptyVec<T> {
+        NonEmptyVec {
+            first,
+            rest: vec![]
+        }
+    }
+
+    pub fn new(first: T, rest: Vec<T>) -> NonEmptyVec<T> {
+        NonEmptyVec {
+            first,
+            rest
+        }
+    }
+
+    pub fn head(&self) -> T {
+        self.first.clone()
+    }
+}
+
+pub struct Config {
+    pub working_dir: PathBuf,
+    pub repositories: NonEmptyVec<OwnerRepo>,
 }

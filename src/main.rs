@@ -13,7 +13,11 @@ mod model;
 async fn main() -> octocrab::Result<()> {
 
     let token = std::env::var("GH_ACCESS_TOKEN").expect("Could not find Github Personal Access Token");
-    let config = Config{ working_dir: Path::new("/Users/sanj/ziptemp/prs") };
+    let config =
+        Config {
+            working_dir: Path::new("/Users/sanj/ziptemp/prs").to_path_buf(),
+            repositories: NonEmptyVec::one(OwnerRepo(Owner("XAMPPRocky".to_string()), Repo("octocrab".to_string())))
+        };
 
     let octocrab =
         OctocrabBuilder::new()
@@ -21,7 +25,7 @@ async fn main() -> octocrab::Result<()> {
         .build()?;
 
 
-    let result = get_prs(&octocrab).await?;
+    let result = get_prs(&config, &octocrab).await?;
     // let result = get_dummy_prs();
     let length = result.len();
 
@@ -31,7 +35,6 @@ async fn main() -> octocrab::Result<()> {
 
     match read_user_response("Please select a PR to clone to 'q' to exit", length) {
         Ok(response) => {
-            println!("You said: {:?}", response);
             match response {
                 UserSelection::Number(selection) => {
                     let selected = result.get(usize::from(selection - 1)).expect("Invalid index");
@@ -162,20 +165,19 @@ fn get_process_output(command: &mut Command) -> io::Result<CmdOutput> {
     l
 }
 
-struct Config <'a> {
-    working_dir: &'a Path
-}
-
 fn get_extract_path(config: &Config, pull: &PullRequest) -> String {
     let repo_name = pull.repo_name.clone().unwrap_or("default".to_string());
     let separator = format!("{}", std::path::MAIN_SEPARATOR);
     vec![config.working_dir.to_string_lossy().to_string(), repo_name, pull.branch_name.clone(), pull.head_sha.clone()].join(&separator).to_string()
 }
 
-async fn get_prs(octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
+async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
 
+    //Use only the first for now.
+
+    let OwnerRepo(owner, repo) = config.repositories.head();
     let page = octocrab
-    .pulls("XAMPPRocky", "octocrab")
+    .pulls(owner.0, repo.0)
     .list()
     // Optional Parameters
     .state(params::State::Open)

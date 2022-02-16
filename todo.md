@@ -9,7 +9,10 @@
   - [ ] Number of Approvals
   - [ ] Number of Reviewers
   - [ ] Number of Comments
-
+- Write each run command
+- Add clap for cli arguments
+- Read config from file?
+- Handle multiple repos concurrently
 
 ## Design
 
