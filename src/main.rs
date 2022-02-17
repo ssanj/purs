@@ -128,6 +128,8 @@ fn clone_branch(config: &Config, pull: &PullRequest) -> io::Result<()> {
                 let result = diff_command.status();
                 result.expect("Could not generate diff file list");
                 write_file_out(&file_list_path, checkout_path.as_str(), &pull).expect("Could not write out file list");
+                // run_sbt_tests(checkout_path.as_str()).expect("Could not run sbt tests");
+                // launch_sbt(checkout_path.as_str()).expect("Could not launch SBT repl");
 
                 Ok(())
             },
@@ -272,6 +274,7 @@ where P: AsRef<Path> + Copy {
          .stdout(diff_file)
          .arg("diff")
          .arg(format!("{}..{}", &pull.base_sha, &pull.head_sha))
+         .arg("--")
          .arg(&file);
 
          diff_command.status().expect(&format!("Could not write out file: {}", path.as_path().to_string_lossy()));
@@ -298,3 +301,23 @@ where P: AsRef<Path>, {
     Ok(io::BufReader::new(file).lines())
 }
 
+fn run_sbt_tests(working_dir: &str) -> io::Result<()> {
+    let mut sbt_command = Command::new("sbt");
+    sbt_command
+    .current_dir(working_dir)
+    .arg("test");
+
+    sbt_command.status().expect("Running SBT tests failed");
+    Ok(())
+}
+
+fn launch_sbt(working_dir: &str) -> io::Result<()> {
+    let mut sbt_command = Command::new("sbt");
+    sbt_command
+    .current_dir(working_dir)
+    .arg("-mem")
+    .arg("2048");
+
+    sbt_command.status().expect("Running SBT failed");
+    Ok(())
+}
