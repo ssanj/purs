@@ -16,7 +16,7 @@ async fn main() -> octocrab::Result<()> {
     let config =
         Config {
             working_dir: Path::new("/Users/sanj/ziptemp/prs").to_path_buf(),
-            repositories: NonEmptyVec::one(OwnerRepo(Owner("XAMPPRocky".to_string()), Repo("octocrab".to_string())))
+            repositories: NonEmptyVec::one(OwnerRepo(Owner("disneystreaming".to_string()), Repo("weaver-test".to_string())))
         };
 
     let octocrab =
@@ -179,7 +179,7 @@ async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<P
 
     let OwnerRepo(owner, repo) = config.repositories.head();
     let page = octocrab
-    .pulls(owner.0, repo.0)
+    .pulls(owner.0.to_owned(), repo.0.to_owned())
     .list()
     // Optional Parameters
     .state(params::State::Open)
@@ -189,17 +189,20 @@ async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<P
     .send()
     .await?;
 
-    let results =
-        page.into_iter().map (|pull| {
-            let title = pull.title.clone().unwrap_or("-".to_string());
-            let pr_no = pull.number;
-            // let diff_url = pull.diff_url.clone().map(|u| u.to_string()).unwrap_or("-".to_string());
-            let ssh_url = pull.head.repo.clone().and_then(|r| (r.ssh_url));
-            let head_sha = pull.head.sha;
-            let repo_name = pull.head.repo.clone().and_then(|r| r.full_name);
-            let branch_name = pull.head.ref_field;
-            let base_sha = pull.base.sha;
+    let mut results = vec![];
+    for pull in page {
+        let title = pull.title.clone().unwrap_or("-".to_string());
+        let pr_no = pull.number;
+        // let diff_url = pull.diff_url.clone().map(|u| u.to_string()).unwrap_or("-".to_string());
+        let ssh_url = pull.head.repo.clone().and_then(|r| (r.ssh_url));
+        let head_sha = pull.head.sha;
+        let repo_name = pull.head.repo.clone().and_then(|r| r.full_name);
+        let branch_name = pull.head.ref_field;
+        let base_sha = pull.base.sha;
 
+        let review_count = get_reviews(octocrab, &owner, &repo, pr_no).await?;
+
+        results.push(
             PullRequest {
                 title,
                 pr_number: pr_no,
@@ -207,46 +210,56 @@ async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<P
                 branch_name,
                 head_sha,
                 repo_name,
-                base_sha
+                base_sha,
+                review_count
             }
-        })
-        .collect::<Vec<PullRequest>>();
+        )
+    }
 
     Ok(results)
 }
 
-fn get_dummy_prs() -> Vec<PullRequest> {
-    vec![
-        PullRequest {
-            title: "TITLE1".to_string(),
-            pr_number: 100,
-            ssh_url: Some("ssh1".to_string()),
-            repo_name: Some("repo1".to_string()),
-            branch_name: "branch1".to_string(),
-            head_sha: "sha1".to_string(),
-            base_sha: "base-sha1".to_string(),
-        },
-        PullRequest {
-            title: "TITLE2".to_string(),
-            pr_number: 200,
-            ssh_url: Some("ssh2".to_string()),
-            repo_name: Some("repo2".to_string()),
-            branch_name: "branch2".to_string(),
-            head_sha: "sha2".to_string(),
-            base_sha: "base-sha2".to_string(),
-        },
-        PullRequest {
-            title: "TITLE3".to_string(),
-            pr_number: 300,
-            ssh_url: Some("ssh3".to_string()),
-            repo_name: Some("repo3".to_string()),
-            branch_name: "branch3".to_string(),
-            head_sha: "sha3".to_string(),
-            base_sha: "base-sha3".to_string(),
-        }
-    ]
+async fn get_reviews(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64) -> octocrab::Result<usize> {
+    let reviews =
+        octocrab
+        .pulls(owner.0.to_owned(), repo.0.to_owned())
+        .list_reviews(pr_no).await?;
 
+    Ok(reviews.into_iter().count())
 }
+
+// fn get_dummy_prs() -> octocrab::Result<Vec<PullRequest>> {
+//     vec![
+//         PullRequest {
+//             title: "TITLE1".to_string(),
+//             pr_number: 100,
+//             ssh_url: Some("ssh1".to_string()),
+//             repo_name: Some("repo1".to_string()),
+//             branch_name: "branch1".to_string(),
+//             head_sha: "sha1".to_string(),
+//             base_sha: "base-sha1".to_string(),
+//         },
+//         PullRequest {
+//             title: "TITLE2".to_string(),
+//             pr_number: 200,
+//             ssh_url: Some("ssh2".to_string()),
+//             repo_name: Some("repo2".to_string()),
+//             branch_name: "branch2".to_string(),
+//             head_sha: "sha2".to_string(),
+//             base_sha: "base-sha2".to_string(),
+//         },
+//         PullRequest {
+//             title: "TITLE3".to_string(),
+//             pr_number: 300,
+//             ssh_url: Some("ssh3".to_string()),
+//             repo_name: Some("repo3".to_string()),
+//             branch_name: "branch3".to_string(),
+//             head_sha: "sha3".to_string(),
+//             base_sha: "base-sha3".to_string(),
+//         }
+//     ]
+
+// }
 
 pub fn print_error(message: String) {
   let coloured_error = Colour::Red.paint(format!("Error: {}", message));

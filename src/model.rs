@@ -10,11 +10,12 @@ pub struct PullRequest {
     pub branch_name: String,
     pub head_sha: String,
     pub base_sha: String,
+    pub review_count: usize,
 }
 
 impl fmt::Display for PullRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}, [{}] {}", self.title, self.pr_number, if self.ssh_url.is_none()  { "x" } else { "v" })
+        write!(f, "{}, PR#{} RV#{} [{}]", self.title, self.pr_number, self.review_count, if self.ssh_url.is_none()  { "x" } else { "v" })
     }
 }
 
