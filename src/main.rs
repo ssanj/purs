@@ -201,6 +201,7 @@ async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<P
         let base_sha = pull.base.sha;
 
         let review_count = get_reviews(octocrab, &owner, &repo, pr_no).await?;
+        let comment_count = get_comments(octocrab, &owner, &repo, pr_no).await?;
 
         results.push(
             PullRequest {
@@ -211,7 +212,8 @@ async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<P
                 head_sha,
                 repo_name,
                 base_sha,
-                review_count
+                review_count,
+                comment_count
             }
         )
     }
@@ -226,6 +228,17 @@ async fn get_reviews(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64
         .list_reviews(pr_no).await?;
 
     Ok(reviews.into_iter().count())
+}
+
+async fn get_comments(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64) -> octocrab::Result<usize> {
+    let comments =
+        octocrab
+        .pulls(owner.0.to_owned(), repo.0.to_owned())
+        .list_comments(Some(pr_no))
+        .send()
+        .await?;
+
+    Ok(comments.into_iter().count())
 }
 
 // fn get_dummy_prs() -> octocrab::Result<Vec<PullRequest>> {
