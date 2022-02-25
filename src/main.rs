@@ -1,3 +1,4 @@
+use octocrab::models::Contents;
 use octocrab::{self, OctocrabBuilder, Octocrab};
 use octocrab::params;
 use crate::model::*;
@@ -6,6 +7,8 @@ use std::path::Path;
 use std::process::Command;
 use ansi_term::Colour;
 use std::fs::File;
+extern crate unidiff;
+use unidiff::PatchSet;
 
 mod model;
 
@@ -112,24 +115,24 @@ fn clone_branch(config: &Config, pull: &PullRequest) -> io::Result<()> {
           match output {
             Ok(CmdOutput::Success) => {
                 println!("Generating diff files...");
+                println!("{:?}", pull.diffs);
+                // let file_list_path = Path::new(checkout_path.as_str()).join("diff_file_list.txt");
+                // let file_list = File::create(&file_list_path) .unwrap();
 
-                let file_list_path = Path::new(checkout_path.as_str()).join("diff_file_list.txt");
-                let file_list = File::create(&file_list_path) .unwrap();
 
+                // let mut diff_command = Command::new("git");
+                // diff_command
+                //  .current_dir(checkout_path.as_str())
+                //  .stdout(file_list)
+                //  .arg("diff")
+                //  .arg("--name-only")
+                //  .arg(format!("{}..{}", &pull.base_sha, &pull.head_sha));
 
-                let mut diff_command = Command::new("git");
-                diff_command
-                 .current_dir(checkout_path.as_str())
-                 .stdout(file_list)
-                 .arg("diff")
-                 .arg("--name-only")
-                 .arg(format!("{}..{}", &pull.base_sha, &pull.head_sha));
-
-                let result = diff_command.status();
-                result.expect("Could not generate diff file list");
-                write_file_out(&file_list_path, checkout_path.as_str(), &pull).expect("Could not write out file list");
-                // run_sbt_tests(checkout_path.as_str()).expect("Could not run sbt tests");
-                // launch_sbt(checkout_path.as_str()).expect("Could not launch SBT repl");
+                // let result = diff_command.status();
+                // result.expect("Could not generate diff file list");
+                // write_file_out(&file_list_path, checkout_path.as_str(), &pull).expect("Could not write out file list");
+                // // run_sbt_tests(checkout_path.as_str()).expect("Could not run sbt tests");
+                // // launch_sbt(checkout_path.as_str()).expect("Could not launch SBT repl");
 
                 Ok(())
             },
@@ -185,7 +188,7 @@ async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<P
     .state(params::State::Open)
     .sort(params::pulls::Sort::Created)
     .direction(params::Direction::Descending)
-    .per_page(50)
+    .per_page(5)
     .send()
     .await?;
 
@@ -202,6 +205,7 @@ async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<P
 
         let review_count = get_reviews(octocrab, &owner, &repo, pr_no).await?;
         let comment_count = get_comments(octocrab, &owner, &repo, pr_no).await?;
+        let diffs = get_pr_diffs(octocrab, &owner, &repo, pr_no).await?;
 
         results.push(
             PullRequest {
@@ -213,12 +217,51 @@ async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<P
                 repo_name,
                 base_sha,
                 review_count,
-                comment_count
+                comment_count,
+                diffs
             }
         )
     }
 
     Ok(results)
+}
+
+//TODO: Return Result with an error if the diff can't be parsed.
+fn parse_diffs(diff: &str) -> PullRequestDiff {
+    let mut patch = PatchSet::new();
+    patch.parse(diff).ok().expect("Error parsing diff");
+
+    let diffs = patch.files().into_iter().map (|p| {
+        let file_name =
+            // if a file is deleted there is no target file (because it's deleted)
+            // if a file is added there is no source file (because it's a new file)
+            // if a file is modified there is both a source and target file
+            if p.is_removed_file() {
+                parse_only_file_name(&p.source_file)
+            } else {
+                parse_only_file_name(&p.target_file)
+            };
+
+        let contents = p.to_string();
+
+        GitDiff {
+            file_name,
+            contents
+        }
+    }).collect();
+
+    PullRequestDiff(diffs)
+}
+
+fn parse_only_file_name(diff_file: &str) -> String {
+    let mut file_name = diff_file.to_string();
+
+    // TODO: If this fails the format of the file name is not what we expected
+    // Return a specific error later
+    let index = file_name.find('/').unwrap() + 1;
+    // Remove prefix of a/.. or b/..
+    file_name.replace_range(..index, "");
+    file_name
 }
 
 async fn get_reviews(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64) -> octocrab::Result<usize> {
@@ -239,6 +282,16 @@ async fn get_comments(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u6
         .await?;
 
     Ok(comments.into_iter().count())
+}
+
+async fn get_pr_diffs(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64) -> octocrab::Result<PullRequestDiff> {
+    let diff_string =
+        octocrab
+        .pulls(owner.0.to_owned(), repo.0.to_owned())
+        .get_diff(pr_no)
+        .await?;
+
+    Ok(parse_diffs(&diff_string))
 }
 
 // fn get_dummy_prs() -> octocrab::Result<Vec<PullRequest>> {

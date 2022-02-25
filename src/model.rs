@@ -12,7 +12,11 @@ pub struct PullRequest {
     pub base_sha: String,
     pub review_count: usize,
     pub comment_count: usize,
+    pub diffs: PullRequestDiff
 }
+
+#[derive(Debug, Clone)]
+pub struct PullRequestDiff(pub Vec<GitDiff>);
 
 impl fmt::Display for PullRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -74,4 +78,10 @@ impl <T: Clone> NonEmptyVec<T> {
 pub struct Config {
     pub working_dir: PathBuf,
     pub repositories: NonEmptyVec<OwnerRepo>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GitDiff {
+    pub file_name: String,
+    pub contents: String
 }
