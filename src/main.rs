@@ -5,6 +5,7 @@ use crate::model::*;
 use std::io::{self, BufRead};
 use std::path::Path;
 use std::process::Command;
+// use std::thread::JoinHandle;
 use ansi_term::Colour;
 use std::fs::File;
 extern crate unidiff;
@@ -272,6 +273,22 @@ async fn get_reviews(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64
 
     Ok(reviews.into_iter().count())
 }
+
+// async fn get_reviews2(octocrab:  &'static Octocrab, owner:  &'static Owner, repo:  &'static Repo, pr_no: u64) -> tokio::task::JoinHandle<usize> {
+
+//     let reviewF = tokio::spawn(
+//     async move {
+//         let reviews =
+//             octocrab
+//             .pulls(owner.0.to_owned(), repo.0.to_owned())
+//             .list_reviews(pr_no).await;
+
+//             reviews.into_iter().count()
+//         }
+//     );
+
+//     reviewF
+// }
 
 async fn get_comments(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64) -> octocrab::Result<usize> {
     let comments =

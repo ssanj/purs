@@ -17,3 +17,4 @@
 ## Design
 
 - [ ] Decide on how to handle errors
+- [ ] Use tokio to run multiple requests for each pr concurrently
