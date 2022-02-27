@@ -2,7 +2,7 @@ use octocrab::models::Contents;
 use octocrab::{self, OctocrabBuilder, Octocrab};
 use octocrab::params;
 use crate::model::*;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Write};
 use std::path::Path;
 use std::process::Command;
 // use std::thread::JoinHandle;
@@ -116,22 +116,22 @@ fn clone_branch(config: &Config, pull: &PullRequest) -> io::Result<()> {
           match output {
             Ok(CmdOutput::Success) => {
                 println!("Generating diff files...");
-                println!("{:?}", pull.diffs);
-                // let file_list_path = Path::new(checkout_path.as_str()).join("diff_file_list.txt");
-                // let file_list = File::create(&file_list_path) .unwrap();
+                // println!("{:?}", pull.diffs);
+                let file_list_path = Path::new(checkout_path.as_str()).join("diff_file_list.txt");
+                let mut file_list = File::create(&file_list_path) .unwrap();
 
+                pull.diffs.0.iter().for_each(|d| {
+                    writeln!(file_list, "{}", d.file_name).unwrap();
 
-                // let mut diff_command = Command::new("git");
-                // diff_command
-                //  .current_dir(checkout_path.as_str())
-                //  .stdout(file_list)
-                //  .arg("diff")
-                //  .arg("--name-only")
-                //  .arg(format!("{}..{}", &pull.base_sha, &pull.head_sha));
+                    let diff_file_name = format!("{}.diff", d.file_name);
+                    let diff_file = Path::new(checkout_path.as_str()).join(&diff_file_name);
 
-                // let result = diff_command.status();
-                // result.expect("Could not generate diff file list");
-                // write_file_out(&file_list_path, checkout_path.as_str(), &pull).expect("Could not write out file list");
+                    let mut f = File::create(&diff_file).unwrap();
+                    println!("Creating {}", &diff_file_name);
+                    let buf: &[u8]= d.contents.as_ref();
+                    f.write_all(buf).unwrap();
+                });
+
                 // // run_sbt_tests(checkout_path.as_str()).expect("Could not run sbt tests");
                 // // launch_sbt(checkout_path.as_str()).expect("Could not launch SBT repl");
 
@@ -189,7 +189,7 @@ async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<P
     .state(params::State::Open)
     .sort(params::pulls::Sort::Created)
     .direction(params::Direction::Descending)
-    .per_page(5)
+    .per_page(20)
     .send()
     .await?;
 
