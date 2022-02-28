@@ -2,6 +2,7 @@ use octocrab::models::Contents;
 use octocrab::{self, OctocrabBuilder, Octocrab};
 use octocrab::params;
 use crate::model::*;
+use std::error::Error;
 use std::io::{self, BufRead, Write};
 use std::path::Path;
 use std::process::Command;
@@ -10,6 +11,7 @@ use ansi_term::Colour;
 use std::fs::File;
 extern crate unidiff;
 use unidiff::PatchSet;
+use std::time::Instant;
 
 mod model;
 
@@ -28,8 +30,12 @@ async fn main() -> octocrab::Result<()> {
         .personal_token(token)
         .build()?;
 
+    let pr_start = Instant::now();
+    let result = get_prs2(&config, &octocrab).await?;
+    let time_taken = pr_start.elapsed().as_secs();
 
-    let result = get_prs(&config, &octocrab).await?;
+    println!("PRs took {} seconds", time_taken);
+
     // let result = get_dummy_prs();
     let length = result.len();
 
@@ -177,6 +183,68 @@ fn get_extract_path(config: &Config, pull: &PullRequest) -> String {
     vec![config.working_dir.to_string_lossy().to_string(), repo_name, pull.branch_name.clone(), pull.head_sha.clone()].join(&separator).to_string()
 }
 
+async fn get_prs2(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
+
+    //Use only the first for now.
+
+    let OwnerRepo(owner, repo) = config.repositories.head();
+    let page = octocrab
+    .pulls(owner.0.to_owned(), repo.0.to_owned())
+    .list()
+    // Optional Parameters
+    .state(params::State::Open)
+    .sort(params::pulls::Sort::Created)
+    .direction(params::Direction::Descending)
+    .per_page(20)
+    .send()
+    .await?;
+
+    let mut results = vec![];
+    for pull in page {
+        let title = pull.title.clone().unwrap_or("-".to_string());
+        let pr_no = pull.number;
+        // let diff_url = pull.diff_url.clone().map(|u| u.to_string()).unwrap_or("-".to_string());
+        let ssh_url = pull.head.repo.clone().and_then(|r| (r.ssh_url));
+        let head_sha = pull.head.sha;
+        let repo_name = pull.head.repo.clone().and_then(|r| r.full_name);
+        let branch_name = pull.head.ref_field;
+        let base_sha = pull.base.sha;
+
+        let review_count_handle = tokio::spawn(get_reviews2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
+        let comment_count_handle = tokio::spawn(get_comments2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
+        let diffs_handle = tokio::spawn(get_pr_diffs2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
+
+        let res = tokio::try_join!(
+            flatten(review_count_handle),
+            flatten(comment_count_handle),
+            flatten(diffs_handle)
+        );
+
+
+        match res  {
+            Ok((review_count, comment_count, diffs)) => {
+                results.push(
+                    PullRequest {
+                        title,
+                        pr_number: pr_no,
+                        ssh_url,
+                        branch_name,
+                        head_sha,
+                        repo_name,
+                        base_sha,
+                        review_count,
+                        comment_count,
+                        diffs
+                    }
+                );
+            },
+            Err(e) => println!("Could not retrieve PR: {}/{} #{}, cause: {}", owner.0.to_owned(), repo.0.to_owned(), pr_no, e)
+        }
+    }
+
+    Ok(results)
+}
+
 async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
 
     //Use only the first for now.
@@ -227,6 +295,14 @@ async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<P
     Ok(results)
 }
 
+async fn flatten<T>(handle: tokio::task::JoinHandle<Result<T, octocrab::Error>>) -> Result<T, octocrab::Error> {
+    match handle.await {
+        Ok(Ok(result)) => Ok(result),
+        Ok(Err(err)) => Err(err),
+        Err(err) => Err(todo!()),
+    }
+}
+
 //TODO: Return Result with an error if the diff can't be parsed.
 fn parse_diffs(diff: &str) -> PullRequestDiff {
     let mut patch = PatchSet::new();
@@ -274,23 +350,28 @@ async fn get_reviews(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64
     Ok(reviews.into_iter().count())
 }
 
-// async fn get_reviews2(octocrab:  &'static Octocrab, owner:  &'static Owner, repo:  &'static Repo, pr_no: u64) -> tokio::task::JoinHandle<usize> {
+async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u64) -> octocrab::Result<usize> {
+    let reviews =
+        octocrab
+        .pulls(owner.0.to_owned(), repo.0.to_owned())
+        .list_reviews(pr_no)
+        .await?;
 
-//     let reviewF = tokio::spawn(
-//     async move {
-//         let reviews =
-//             octocrab
-//             .pulls(owner.0.to_owned(), repo.0.to_owned())
-//             .list_reviews(pr_no).await;
-
-//             reviews.into_iter().count()
-//         }
-//     );
-
-//     reviewF
-// }
+    Ok(reviews.into_iter().count())
+}
 
 async fn get_comments(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64) -> octocrab::Result<usize> {
+    let comments =
+        octocrab
+        .pulls(owner.0.to_owned(), repo.0.to_owned())
+        .list_comments(Some(pr_no))
+        .send()
+        .await?;
+
+    Ok(comments.into_iter().count())
+}
+
+async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64) -> octocrab::Result<usize> {
     let comments =
         octocrab
         .pulls(owner.0.to_owned(), repo.0.to_owned())
@@ -310,6 +391,18 @@ async fn get_pr_diffs(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u6
 
     Ok(parse_diffs(&diff_string))
 }
+
+async fn get_pr_diffs2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64) -> octocrab::Result<PullRequestDiff> {
+    let diff_string =
+        octocrab
+        .pulls(owner.0.to_owned(), repo.0.to_owned())
+        .get_diff(pr_no)
+        .await?;
+
+    Ok(parse_diffs(&diff_string))
+}
+
+
 
 // fn get_dummy_prs() -> octocrab::Result<Vec<PullRequest>> {
 //     vec![
