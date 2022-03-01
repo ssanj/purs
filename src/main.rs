@@ -5,8 +5,8 @@ use crate::model::*;
 use std::error::Error;
 use std::io::{self, BufRead, Write};
 use std::path::Path;
+use std::fmt::{self, Display};
 use std::process::Command;
-// use std::thread::JoinHandle;
 use ansi_term::Colour;
 use std::fs::File;
 extern crate unidiff;
@@ -63,15 +63,6 @@ async fn main() -> octocrab::Result<()> {
     }
 
     Ok(())
-}
-
-enum UserInputError {
-    InvalidNumber(String),
-    InvalidSelection{
-        selected: u8,
-        min_selection: u8,
-        max_selection: usize
-    }
 }
 
 
@@ -248,14 +239,6 @@ async fn get_prs2(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<
     Ok(results)
 }
 
-struct AsyncPullRequestParts {
-    pull: octocrab::models::pulls::PullRequest,
-    review_count_handle: JoinHandle<octocrab::Result<usize>>,
-    comment_count_handle: JoinHandle<octocrab::Result<usize>>,
-    diffs_handle: JoinHandle<octocrab::Result<PullRequestDiff>>
-}
-
-
 async fn get_prs3(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
 
     //Use only the first for now.
@@ -378,11 +361,32 @@ async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<P
     Ok(results)
 }
 
-async fn flatten<T>(handle: tokio::task::JoinHandle<Result<T, octocrab::Error>>) -> Result<T, Box<dyn Error>> {
+async fn flatten<T>(handle: tokio::task::JoinHandle<Result<T, octocrab::Error>>) -> Result<T, PursError> {
     match handle.await {
         Ok(Ok(result)) => Ok(result),
-        Ok(Err(err)) => Err(to_std_error(err)),
-        Err(err) => Err(Box::new(err)),
+        Ok(Err(err)) => Err(PursError::Other(to_std_error(err))),
+        Err(err) => Err(PursError::Other(Box::new(err))),
+    }
+}
+
+#[derive(Debug)]
+enum PursError {
+    Other(Box<dyn Error>)
+}
+
+impl std::error::Error for PursError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            PursError::Other(error) =>  Some(error.as_ref())
+        }
+    }
+}
+
+impl Display for PursError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PursError::Other(error) => write!(f, "PursError: {}", error)
+        }
     }
 }
 

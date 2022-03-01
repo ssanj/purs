@@ -1,5 +1,7 @@
 use std::fmt;
 use std::path::PathBuf;
+use octocrab;
+use tokio::task::JoinHandle;
 
 #[derive(Debug, Clone)]
 pub struct PullRequest {
@@ -84,4 +86,22 @@ pub struct Config {
 pub struct GitDiff {
     pub file_name: String,
     pub contents: String
+}
+
+
+pub struct AsyncPullRequestParts {
+    pub pull: octocrab::models::pulls::PullRequest,
+    pub review_count_handle: JoinHandle<octocrab::Result<usize>>,
+    pub comment_count_handle: JoinHandle<octocrab::Result<usize>>,
+    pub diffs_handle: JoinHandle<octocrab::Result<PullRequestDiff>>
+}
+
+
+pub enum UserInputError {
+    InvalidNumber(String),
+    InvalidSelection{
+        selected: u8,
+        min_selection: u8,
+        max_selection: usize
+    }
 }
