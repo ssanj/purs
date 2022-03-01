@@ -14,6 +14,7 @@ use unidiff::PatchSet;
 use std::time::Instant;
 use std::collections::HashMap;
 use tokio::task::JoinHandle;
+use futures::stream::{self, StreamExt};
 
 mod model;
 
@@ -291,71 +292,43 @@ async fn get_prs3(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<
         );
     }
 
-    let mut results = vec![];
-
-    for (pr_no, AsyncPullRequestParts { pull, review_count_handle, comment_count_handle, diffs_handle }) in things.into_iter() {
-        let res = tokio::try_join!(
-            flatten(review_count_handle),
-            flatten(comment_count_handle),
-            flatten(diffs_handle)
-        );
-
-        let (review_count, comment_count, diffs) = res.unwrap();
-
-        let title = pull.title.clone().unwrap_or("-".to_string());
-        let ssh_url = pull.head.repo.clone().and_then(|r| (r.ssh_url));
-        let head_sha = pull.head.sha;
-        let repo_name = pull.head.repo.clone().and_then(|r| r.full_name);
-        let branch_name = pull.head.ref_field;
-        let base_sha = pull.base.sha;
-
-        results.push(
-            PullRequest {
-                title,
-                pr_number: pr_no,
-                ssh_url,
-                branch_name,
-                head_sha,
-                repo_name,
-                base_sha,
-                review_count,
-                comment_count,
-                diffs
-            }
-        )
-    }
-
-  Ok(results)
-
-        // let res = tokio::try_join!(
-        //     flatten(review_count_handle),
-        //     flatten(comment_count_handle),
-        //     flatten(diffs_handle)
-        // );
+    let stream = stream::iter(things.into_iter());
 
 
-    //     match res  {
-    //         Ok((review_count, comment_count, diffs)) => {
-    //             results.push(
-    //                 PullRequest {
-    //                     title,
-    //                     pr_number: pr_no,
-    //                     ssh_url,
-    //                     branch_name,
-    //                     head_sha,
-    //                     repo_name,
-    //                     base_sha,
-    //                     review_count,
-    //                     comment_count,
-    //                     diffs
-    //                 }
-    //             );
-    //         },
-    //         Err(e) => println!("Could not retrieve PR: {}/{} #{}, cause: {}", owner.0.to_owned(), repo.0.to_owned(), pr_no, e)
-    //     }
-    // }
+    let pr_stream = stream.then(|(pr_no, AsyncPullRequestParts { pull, review_count_handle, comment_count_handle, diffs_handle })| {
+        async move {
+            let res = tokio::try_join!(
+                flatten(review_count_handle),
+                flatten(comment_count_handle),
+                flatten(diffs_handle)
+            );
 
-    // Ok(results)
+            let (review_count, comment_count, diffs) = res.unwrap();
+
+            let title = pull.title.clone().unwrap_or("-".to_string());
+            let ssh_url = pull.head.repo.clone().and_then(|r| (r.ssh_url));
+            let head_sha = pull.head.sha;
+            let repo_name = pull.head.repo.clone().and_then(|r| r.full_name);
+            let branch_name = pull.head.ref_field;
+            let base_sha = pull.base.sha;
+
+                PullRequest {
+                    title,
+                    pr_number: pr_no,
+                    ssh_url,
+                    branch_name,
+                    head_sha,
+                    repo_name,
+                    base_sha,
+                    review_count,
+                    comment_count,
+                    diffs
+                }
+        }
+    });
+
+    let results = pr_stream.collect().await;
+    Ok(results)
 }
 
 async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
