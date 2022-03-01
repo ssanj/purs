@@ -12,6 +12,7 @@ use std::fs::File;
 extern crate unidiff;
 use unidiff::PatchSet;
 use std::time::Instant;
+use std::collections::HashMap;
 
 mod model;
 
@@ -243,6 +244,115 @@ async fn get_prs2(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<
     }
 
     Ok(results)
+}
+
+
+async fn get_prs3(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
+
+    //Use only the first for now.
+
+    let OwnerRepo(owner, repo) = config.repositories.head();
+    let page = octocrab
+    .pulls(owner.0.to_owned(), repo.0.to_owned())
+    .list()
+    // Optional Parameters
+    .state(params::State::Open)
+    .sort(params::pulls::Sort::Created)
+    .direction(params::Direction::Descending)
+    .per_page(20)
+    .send()
+    .await?;
+
+    // let mut results = vec![];
+    let mut things = HashMap::new();
+    for pull in page {
+        let title = pull.title.clone().unwrap_or("-".to_string());
+        let pr_no = pull.number;
+        // let diff_url = pull.diff_url.clone().map(|u| u.to_string()).unwrap_or("-".to_string());
+        let ssh_url = pull.head.repo.clone().and_then(|r| (r.ssh_url));
+        let head_sha = pull.head.sha;
+        let repo_name = pull.head.repo.clone().and_then(|r| r.full_name);
+        let branch_name = pull.head.ref_field;
+        let base_sha = pull.base.sha;
+
+        let review_count_handle = tokio::spawn(get_reviews2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
+        let comment_count_handle = tokio::spawn(get_comments2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
+        let diffs_handle = tokio::spawn(get_pr_diffs2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
+
+        things.insert(pr_no, (review_count_handle, comment_count_handle, diffs_handle));
+    }
+
+    let mut resultsMap = HashMap::new();
+
+
+        for (k, v) in things.into_iter() {
+            let res = tokio::try_join!(
+                flatten(v.0),
+                flatten(v.1),
+                flatten(v.2)
+            );
+
+            resultsMap.insert(k, res);
+        }
+
+        let results =
+            resultsMap.into_iter().map(|(k, v)| {
+                let (review_count, comment_count, diffs) = v.unwrap();
+
+                let title = format!("PR#{}", k);
+                let pr_no = k;
+
+                let ssh_url = None;
+                let head_sha = format!("SHA#{}", k);
+                let repo_name = None;
+                let branch_name = format!("BRANCH#{}", k);
+                let base_sha = format!("BASE_SHA#{}", k);
+
+                PullRequest {
+                    title,
+                    pr_number: pr_no,
+                    ssh_url,
+                    branch_name,
+                    head_sha,
+                    repo_name,
+                    base_sha,
+                    review_count,
+                    comment_count,
+                    diffs
+                }
+            }).collect::<Vec<PullRequest>>();
+
+    Ok(results)
+
+        // let res = tokio::try_join!(
+        //     flatten(review_count_handle),
+        //     flatten(comment_count_handle),
+        //     flatten(diffs_handle)
+        // );
+
+
+    //     match res  {
+    //         Ok((review_count, comment_count, diffs)) => {
+    //             results.push(
+    //                 PullRequest {
+    //                     title,
+    //                     pr_number: pr_no,
+    //                     ssh_url,
+    //                     branch_name,
+    //                     head_sha,
+    //                     repo_name,
+    //                     base_sha,
+    //                     review_count,
+    //                     comment_count,
+    //                     diffs
+    //                 }
+    //             );
+    //         },
+    //         Err(e) => println!("Could not retrieve PR: {}/{} #{}, cause: {}", owner.0.to_owned(), repo.0.to_owned(), pr_no, e)
+    //     }
+    // }
+
+    // Ok(results)
 }
 
 async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
