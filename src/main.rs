@@ -378,11 +378,23 @@ async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<P
     Ok(results)
 }
 
-async fn flatten<T>(handle: tokio::task::JoinHandle<Result<T, octocrab::Error>>) -> Result<T, octocrab::Error> {
+async fn flatten<T>(handle: tokio::task::JoinHandle<Result<T, octocrab::Error>>) -> Result<T, Box<dyn Error>> {
     match handle.await {
         Ok(Ok(result)) => Ok(result),
-        Ok(Err(err)) => Err(err),
-        Err(err) => Err(todo!()),
+        Ok(Err(err)) => Err(to_std_error(err)),
+        Err(err) => Err(Box::new(err)),
+    }
+}
+
+fn to_std_error(octocrab_error: octocrab::Error) -> Box<dyn Error> {
+    match octocrab_error {
+        octocrab::Error::GitHub { source, .. } => Box::new(source),
+        octocrab::Error::Url { source, ..} => Box::new(source),
+        octocrab::Error::Http { source, .. } => Box::new(source),
+        octocrab::Error::Serde { source, ..} => Box::new(source),
+        octocrab::Error::Json { source, .. } => Box::new(source),
+        octocrab::Error::JWT { source, .. } => Box::new(source),
+        octocrab::Error::Other { source, .. } => source,
     }
 }
 
