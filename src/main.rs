@@ -1,3 +1,5 @@
+use futures::FutureExt;
+use futures::future::join;
 use octocrab::models::Contents;
 use octocrab::{self, OctocrabBuilder, Octocrab};
 use octocrab::params;
@@ -22,10 +24,14 @@ mod model;
 async fn main() -> octocrab::Result<()> {
 
     let token = std::env::var("GH_ACCESS_TOKEN").expect("Could not find Github Personal Access Token");
+
+    let repo1 = OwnerRepo(Owner("disneystreaming".to_string()), Repo("weaver-test".to_string()));
+    let repo2 = OwnerRepo(Owner("scalatest".to_string()), Repo("scalatest".to_string()));
+
     let config =
         Config {
             working_dir: Path::new("/Users/sanj/ziptemp/prs").to_path_buf(),
-            repositories: NonEmptyVec::one(OwnerRepo(Owner("disneystreaming".to_string()), Repo("weaver-test".to_string())))
+            repositories: NonEmptyVec::new(repo1, vec![repo2])
         };
 
     let octocrab =
@@ -34,7 +40,7 @@ async fn main() -> octocrab::Result<()> {
         .build()?;
 
     let pr_start = Instant::now();
-    let result = get_prs3(&config, &octocrab).await?;
+    let result = get_prs3(&config, octocrab).await?;
     let time_taken = pr_start.elapsed().as_secs();
 
     println!("PRs took {} seconds", time_taken);
@@ -239,40 +245,62 @@ async fn get_prs2(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<
     Ok(results)
 }
 
-async fn get_prs3(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
-
-    //Use only the first for now.
-
-    let OwnerRepo(owner, repo) = config.repositories.head();
-    let page = octocrab
+async fn get_pulls(octocrab: Octocrab, ownerRepo: OwnerRepo) -> Result<octocrab::Page<octocrab::models::pulls::PullRequest>, octocrab::Error> {
+    let OwnerRepo(owner, repo) = ownerRepo;
+    octocrab
     .pulls(owner.0.to_owned(), repo.0.to_owned())
     .list()
-    // Optional Parameters
     .state(params::State::Open)
     .sort(params::pulls::Sort::Created)
     .direction(params::Direction::Descending)
     .per_page(20)
     .send()
-    .await?;
+    .await
+}
 
+async fn get_prs3(config: &Config, octocrab: Octocrab) -> octocrab::Result<Vec<PullRequest>> {
 
-    let gh_prs = page.into_iter();
+    let page_handles = config.repositories.to_vec().into_iter().map(|owner_repo| {
 
-    let async_parts = gh_prs.map(|pull| {
-            let pr_no = pull.number;
-            let review_count_handle = tokio::spawn(get_reviews2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
-            let comment_count_handle = tokio::spawn(get_comments2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
-            let diffs_handle = tokio::spawn(get_pr_diffs2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
+        let handle =
+            tokio::task::spawn(
+                get_pulls(octocrab.clone(), owner_repo.clone())
+            );
 
-            AsyncPullRequestParts {
-                pull,
-                review_count_handle,
-                comment_count_handle,
-                diffs_handle
-            }
+        (handle, owner_repo)
     }).collect::<Vec<_>>();
 
-    let parts_stream = stream::iter(async_parts.into_iter());
+    let page_handle_stream = stream::iter(page_handles.into_iter());
+
+    let page_stream =
+        page_handle_stream.then(|(pj, ownerRepo)| {
+            async move {
+                let page = flatten(pj).await;
+                let pull = page.unwrap();
+                (pull, ownerRepo)
+            }
+        });
+
+    let gh_prs = page_stream.collect::<Vec<_>>().await;
+
+    let async_parts = gh_prs.into_iter().map(|(page, OwnerRepo(owner, repo))| {
+            page.into_iter().map(|pull| {
+                let pr_no = pull.number;
+                let review_count_handle = tokio::spawn(get_reviews2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
+                let comment_count_handle = tokio::spawn(get_comments2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
+                let diffs_handle = tokio::spawn(get_pr_diffs2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
+
+                AsyncPullRequestParts {
+                    pull,
+                    review_count_handle,
+                    comment_count_handle,
+                    diffs_handle
+                }
+            }).collect::<Vec<_>>()
+    }).collect::<Vec<_>>();
+
+    let parts = async_parts.into_iter().flatten().collect::<Vec<_>>();
+    let parts_stream = stream::iter(parts);
 
     let pr_stream =
         parts_stream.then(|AsyncPullRequestParts { pull, review_count_handle, comment_count_handle, diffs_handle }|{

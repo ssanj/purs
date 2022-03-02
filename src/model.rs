@@ -54,7 +54,7 @@ pub struct OwnerRepo(pub Owner, pub Repo);
 
 pub struct NonEmptyVec<T> {
     first: T,
-    rest: Vec<T>
+    rest: Vec<T>,
 }
 
 impl <T: Clone> NonEmptyVec<T> {
@@ -74,6 +74,13 @@ impl <T: Clone> NonEmptyVec<T> {
 
     pub fn head(&self) -> T {
         self.first.clone()
+    }
+
+    pub fn to_vec(&self) -> Vec<T> {
+        let mut v = vec![];
+        v.push(self.first.clone());
+        v.append(&mut self.rest.clone());
+        v
     }
 }
 
