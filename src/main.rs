@@ -1,5 +1,5 @@
 use futures::FutureExt;
-use futures::future::join;
+use futures::future::{join, join_all, try_join_all};
 use octocrab::models::Contents;
 use octocrab::{self, OctocrabBuilder, Octocrab};
 use octocrab::params;
@@ -7,7 +7,6 @@ use crate::model::*;
 use std::error::Error;
 use std::io::{self, BufRead, Write};
 use std::path::Path;
-use std::fmt::{self, Display};
 use std::process::Command;
 use ansi_term::Colour;
 use std::fs::File;
@@ -245,45 +244,48 @@ async fn get_prs2(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<
     Ok(results)
 }
 
-async fn get_pulls(octocrab: Octocrab, ownerRepo: OwnerRepo) -> Result<octocrab::Page<octocrab::models::pulls::PullRequest>, octocrab::Error> {
-    let OwnerRepo(owner, repo) = ownerRepo;
+async fn get_pulls(octocrab: Octocrab, owner_repo: OwnerRepo) -> Result<octocrab::Page<octocrab::models::pulls::PullRequest>, octocrab::Error> {
+    let OwnerRepo(owner, repo) = owner_repo;
     octocrab
-    .pulls(owner.0.to_owned(), repo.0.to_owned())
-    .list()
-    .state(params::State::Open)
-    .sort(params::pulls::Sort::Created)
-    .direction(params::Direction::Descending)
-    .per_page(20)
-    .send()
-    .await
+      .pulls(owner.0.to_owned(), repo.0.to_owned())
+      .list()
+      .state(params::State::Open)
+      .sort(params::pulls::Sort::Created)
+      .direction(params::Direction::Descending)
+      .per_page(20)
+      .send()
+      .await
 }
 
 async fn get_prs3(config: &Config, octocrab: Octocrab) -> octocrab::Result<Vec<PullRequest>> {
 
-    let page_handles = config.repositories.to_vec().into_iter().map(|owner_repo| {
-
-        let handle =
+    let page_handles =
+      config
+      .repositories
+      .to_vec()
+      .into_iter()
+      .map(|owner_repo| {
+        let handle=
             tokio::task::spawn(
-                get_pulls(octocrab.clone(), owner_repo.clone())
+          get_pulls(
+                  octocrab.clone(), owner_repo.clone()
+                )
+                .map(|hr| { hr.map(|h| (h, owner_repo)) }) //write a help function for this
             );
+            handle
+      }).collect::<Vec<_>>();
 
-        (handle, owner_repo)
-    }).collect::<Vec<_>>();
+    let page_results = try_join_all(page_handles).await;
 
-    let page_handle_stream = stream::iter(page_handles.into_iter());
+    let pages: Vec<Result<(octocrab::Page<octocrab::models::pulls::PullRequest>, OwnerRepo), octocrab::Error>> = page_results.unwrap(); //TODO: Handle errors correctly
 
-    let page_stream =
-        page_handle_stream.then(|(pj, ownerRepo)| {
-            async move {
-                let page = flatten(pj).await;
-                let pull = page.unwrap();
-                (pull, ownerRepo)
-            }
-        });
+    let page_repos =
+      pages
+      .into_iter()
+      .map(|rp| rp.unwrap())
+      .collect::<Vec<_>>();
 
-    let gh_prs = page_stream.collect::<Vec<_>>().await;
-
-    let async_parts = gh_prs.into_iter().map(|(page, OwnerRepo(owner, repo))| {
+    let async_parts = page_repos.into_iter().map(|(page, OwnerRepo(owner, repo))| {
             page.into_iter().map(|pull| {
                 let pr_no = pull.number;
                 let review_count_handle = tokio::spawn(get_reviews2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
@@ -394,27 +396,6 @@ async fn flatten<T>(handle: tokio::task::JoinHandle<Result<T, octocrab::Error>>)
         Ok(Ok(result)) => Ok(result),
         Ok(Err(err)) => Err(PursError::Other(to_std_error(err))),
         Err(err) => Err(PursError::Other(Box::new(err))),
-    }
-}
-
-#[derive(Debug)]
-enum PursError {
-    Other(Box<dyn Error>)
-}
-
-impl std::error::Error for PursError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            PursError::Other(error) =>  Some(error.as_ref())
-        }
-    }
-}
-
-impl Display for PursError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            PursError::Other(error) => write!(f, "PursError: {}", error)
-        }
     }
 }
 

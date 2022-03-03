@@ -1,6 +1,7 @@
-use std::fmt;
 use std::path::PathBuf;
+use std::fmt::{self, Display};
 use octocrab;
+use std::error::Error;
 use tokio::task::JoinHandle;
 
 #[derive(Debug, Clone)]
@@ -110,5 +111,26 @@ pub enum UserInputError {
         selected: u8,
         min_selection: u8,
         max_selection: usize
+    }
+}
+
+#[derive(Debug)]
+pub enum PursError {
+    Other(Box<dyn Error>)
+}
+
+impl std::error::Error for PursError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            PursError::Other(error) =>  Some(error.as_ref())
+        }
+    }
+}
+
+impl Display for PursError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PursError::Other(error) => write!(f, "PursError: {}", error)
+        }
     }
 }
