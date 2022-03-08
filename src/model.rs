@@ -130,6 +130,8 @@ pub enum PursError {
     Other(NestedError),
     Octocrab(NestedError),
     JoinError(NestedError),
+    GitError(String),
+    ProcessError(NestedError), // Maybe add more information about which process was being executed?
 }
 
 // impl std::error::Error for PursError {
@@ -144,9 +146,11 @@ pub enum PursError {
 impl Display for PursError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PursError::Other(error) => write!(f, "PursError:Other {}", error),
-            PursError::Octocrab(error) => write!(f, "PursError:Octocrab {}", error),
-            PursError::JoinError(error) => write!(f, "PursError:JoinError {}", error),
+            PursError::Other(error) => write!(f, "PursError.Other: {}", error),
+            PursError::Octocrab(error) => write!(f, "PursError.Octocrab: {}", error),
+            PursError::JoinError(error) => write!(f, "PursError.JoinError: {}", error),
+            PursError::GitError(error) => write!(f, "PursError.GitError: {}", error),
+            PursError::ProcessError(error) => write!(f, "PursError.ProcessError: {}", error),
         }
     }
 }
