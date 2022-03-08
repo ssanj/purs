@@ -20,7 +20,7 @@ use futures::stream::{self, StreamExt};
 mod model;
 
 #[tokio::main]
-async fn main() -> octocrab::Result<()> {
+async fn main() -> R<()> {
 
     let token = std::env::var("GH_ACCESS_TOKEN").expect("Could not find Github Personal Access Token");
 
@@ -36,7 +36,8 @@ async fn main() -> octocrab::Result<()> {
     let octocrab =
         OctocrabBuilder::new()
         .personal_token(token)
-        .build()?;
+        .build()
+        .map_err(|e| PursError::Octocrab(NestedError::from(e)))?;
 
     let pr_start = Instant::now();
     let result = get_prs3(&config, octocrab).await?;
@@ -244,7 +245,7 @@ async fn get_prs2(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<
     Ok(results)
 }
 
-async fn get_pulls(octocrab: Octocrab, owner_repo: OwnerRepo) -> Result<octocrab::Page<octocrab::models::pulls::PullRequest>, octocrab::Error> {
+async fn get_pulls(octocrab: Octocrab, owner_repo: OwnerRepo) -> R<octocrab::Page<octocrab::models::pulls::PullRequest>> {
     let OwnerRepo(owner, repo) = owner_repo;
     octocrab
       .pulls(owner.0.to_owned(), repo.0.to_owned())
@@ -255,9 +256,10 @@ async fn get_pulls(octocrab: Octocrab, owner_repo: OwnerRepo) -> Result<octocrab
       .per_page(20)
       .send()
       .await
+      .map_err(|e| PursError::Octocrab(NestedError::from(e)))
 }
 
-async fn get_prs3(config: &Config, octocrab: Octocrab) -> octocrab::Result<Vec<PullRequest>> {
+async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
 
     let page_handles =
       config
@@ -275,12 +277,13 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> octocrab::Result<Vec<P
             handle
       }).collect::<Vec<_>>();
 
-    let page_results = try_join_all(page_handles).await;
-
-    let pages: Vec<Result<(octocrab::Page<octocrab::models::pulls::PullRequest>, OwnerRepo), octocrab::Error>> = page_results.unwrap(); //TODO: Handle errors correctly
+    let page_results =
+      try_join_all(page_handles)
+      .await
+      .map_err(|e| PursError::JoinError(NestedError::from(e)))?;
 
     let page_repos =
-      pages
+      page_results
       .into_iter()
       .map(|rp| rp.unwrap())
       .collect::<Vec<_>>();
@@ -394,12 +397,12 @@ async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<P
 async fn flatten<T>(handle: tokio::task::JoinHandle<Result<T, octocrab::Error>>) -> Result<T, PursError> {
     match handle.await {
         Ok(Ok(result)) => Ok(result),
-        Ok(Err(err)) => Err(PursError::Other(to_std_error(err))),
-        Err(err) => Err(PursError::Other(Box::new(err))),
+        Ok(Err(err)) => Err(PursError::Octocrab(NestedError::from(err))),
+        Err(err) => Err(PursError::JoinError(NestedError::from(err))),
     }
 }
 
-fn to_std_error(octocrab_error: octocrab::Error) -> Box<dyn Error> {
+fn to_std_error(octocrab_error: octocrab::Error) -> Box<dyn Error + Send + 'static> {
     match octocrab_error {
         octocrab::Error::GitHub { source, .. } => Box::new(source),
         octocrab::Error::Url { source, ..} => Box::new(source),

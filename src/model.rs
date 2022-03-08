@@ -4,6 +4,8 @@ use octocrab;
 use std::error::Error;
 use tokio::task::JoinHandle;
 
+pub type R<T> = Result<T, PursError>;
+
 #[derive(Debug, Clone)]
 pub struct PullRequest {
     pub title : String,
@@ -115,22 +117,53 @@ pub enum UserInputError {
 }
 
 #[derive(Debug)]
-pub enum PursError {
-    Other(Box<dyn Error>)
-}
+pub struct NestedError(Box<dyn Error + Send + Sync>);
 
-impl std::error::Error for PursError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            PursError::Other(error) =>  Some(error.as_ref())
-        }
+impl Display for NestedError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{}", self)
     }
 }
+
+#[derive(Debug)]
+pub enum PursError {
+    Other(NestedError),
+    Octocrab(NestedError),
+    JoinError(NestedError),
+}
+
+// impl std::error::Error for PursError {
+//     fn source(&self) -> Option<&(dyn Error + 'static)> {
+//         match self {
+//             PursError::Other(error) =>  Some(error.as_ref()),
+//             PursError::Octocrab(error) =>  Some(error)
+//         }
+//     }
+// }
 
 impl Display for PursError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PursError::Other(error) => write!(f, "PursError: {}", error)
+            PursError::Other(error) => write!(f, "PursError:Other {}", error),
+            PursError::Octocrab(error) => write!(f, "PursError:Octocrab {}", error),
+            PursError::JoinError(error) => write!(f, "PursError:JoinError {}", error),
         }
     }
 }
+
+type DynamicError = Box<dyn std::error::Error + Send + Sync>;
+
+impl <E> From<E> for NestedError
+  where E: Into<DynamicError>
+{
+  fn from(error: E) -> Self {
+    NestedError(error.into())
+  }
+}
+
+// impl NestedError {
+//   pub fn from_error<E>(error: E) -> NestedError
+//     where E: Into<DynamicError> {
+//       NestedError(error.into())
+//     }
+// }
