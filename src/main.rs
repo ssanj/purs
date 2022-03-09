@@ -316,7 +316,7 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
                     flatten(diffs_handle)
                 );
 
-                let (review_count, comment_count, diffs) = res.unwrap();
+                let (review_count, comment_count, diffs) = res.unwrap(); //TODO: Make this safer
                 let pr_no = pull.number;
                 let title = pull.title.clone().unwrap_or("-".to_string());
                 let ssh_url = pull.head.repo.clone().and_then(|r| (r.ssh_url));
