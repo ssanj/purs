@@ -132,6 +132,7 @@ pub enum PursError {
     JoinError(NestedError),
     GitError(String),
     ProcessError(NestedError), // Maybe add more information about which process was being executed?
+    MultipleErrors(Vec<PursError>)
 }
 
 // impl std::error::Error for PursError {
@@ -151,6 +152,7 @@ impl Display for PursError {
             PursError::JoinError(error) => write!(f, "PursError.JoinError: {}", error),
             PursError::GitError(error) => write!(f, "PursError.GitError: {}", error),
             PursError::ProcessError(error) => write!(f, "PursError.ProcessError: {}", error),
+            PursError::MultipleErrors(errors) => write!(f, "PursError.MultipleErrors: {:?}", errors),
         }
     }
 }

@@ -316,16 +316,19 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
                     flatten(diffs_handle)
                 );
 
-                let (review_count, comment_count, diffs) = res.unwrap(); //TODO: Make this safer
-                let pr_no = pull.number;
-                let title = pull.title.clone().unwrap_or("-".to_string());
-                let ssh_url = pull.head.repo.clone().and_then(|r| (r.ssh_url));
-                let head_sha = pull.head.sha;
-                let repo_name = pull.head.repo.clone().and_then(|r| r.full_name);
-                let branch_name = pull.head.ref_field;
-                let base_sha = pull.base.sha;
+                match res {
+                  Ok((review_count, comment_count, diffs)) => {
 
-                    PullRequest {
+                    let pr_no = pull.number;
+                    let title = pull.title.clone().unwrap_or("-".to_string());
+                    let ssh_url = pull.head.repo.clone().and_then(|r| (r.ssh_url));
+                    let head_sha = pull.head.sha;
+                    let repo_name = pull.head.repo.clone().and_then(|r| r.full_name);
+                    let branch_name = pull.head.ref_field;
+                    let base_sha = pull.base.sha;
+
+                    let pr =
+                      PullRequest {
                         title,
                         pr_number: pr_no,
                         ssh_url,
@@ -336,12 +339,32 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
                         review_count,
                         comment_count,
                         diffs
-                    }
+                      };
+
+                    Ok(pr)
+                  },
+                  Err(error) => Err(error),
+              }
             }
         });
 
-    let results = pr_stream.collect().await;
-    Ok(results)
+
+    let results_with_errors: Vec<R<PullRequest>> = pr_stream.collect().await;
+
+    let mut pr_errors: Vec<PursError> = vec![];
+    let mut pr_successes: Vec<PullRequest> = vec![];
+
+    //similar to partition
+    results_with_errors.into_iter().for_each(|r| match r {
+      Ok(pr) => pr_successes.push(pr),
+      Err(e) => pr_errors.push(e),
+    });
+
+    if pr_errors.is_empty() {
+      Ok(pr_successes)
+    } else {
+      Err(PursError::MultipleErrors(pr_errors))
+    }
 }
 
 // async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
