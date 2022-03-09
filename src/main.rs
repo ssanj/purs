@@ -394,10 +394,10 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
 //     Ok(results)
 // }
 
-async fn flatten<T>(handle: tokio::task::JoinHandle<Result<T, octocrab::Error>>) -> R<T> {
+async fn flatten<T>(handle: tokio::task::JoinHandle<R<T>>) -> R<T> {
     match handle.await {
-        Ok(Ok(result)) => Ok(result),
-        Ok(Err(err)) => Err(PursError::Octocrab(NestedError::from(err))),
+        Ok(result) => result,
+        Ok(error) => error,
         Err(err) => Err(PursError::JoinError(NestedError::from(err))),
     }
 }
@@ -441,16 +441,16 @@ fn parse_only_file_name(diff_file: &str) -> String {
     file_name
 }
 
-async fn get_reviews(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64) -> octocrab::Result<usize> {
-    let reviews =
-        octocrab
-        .pulls(owner.0.to_owned(), repo.0.to_owned())
-        .list_reviews(pr_no).await?;
+// async fn get_reviews(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64) -> octocrab::Result<usize> {
+//     let reviews =
+//         octocrab
+//         .pulls(owner.0.to_owned(), repo.0.to_owned())
+//         .list_reviews(pr_no).await?;
 
-    Ok(reviews.into_iter().count())
-}
+//     Ok(reviews.into_iter().count())
+// }
 
-async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u64) -> octocrab::Result<usize> {
+async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u64) -> R<usize> {
     let reviews =
         octocrab
         .pulls(owner.0.to_owned(), repo.0.to_owned())
@@ -460,7 +460,18 @@ async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u6
     Ok(reviews.into_iter().count())
 }
 
-async fn get_comments(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64) -> octocrab::Result<usize> {
+// async fn get_comments(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64) -> octocrab::Result<usize> {
+//     let comments =
+//         octocrab
+//         .pulls(owner.0.to_owned(), repo.0.to_owned())
+//         .list_comments(Some(pr_no))
+//         .send()
+//         .await?;
+
+//     Ok(comments.into_iter().count())
+// }
+
+async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64) -> R<usize> {
     let comments =
         octocrab
         .pulls(owner.0.to_owned(), repo.0.to_owned())
@@ -471,28 +482,17 @@ async fn get_comments(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u6
     Ok(comments.into_iter().count())
 }
 
-async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64) -> octocrab::Result<usize> {
-    let comments =
-        octocrab
-        .pulls(owner.0.to_owned(), repo.0.to_owned())
-        .list_comments(Some(pr_no))
-        .send()
-        .await?;
+// async fn get_pr_diffs(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64) -> octocrab::Result<PullRequestDiff> {
+//     let diff_string =
+//         octocrab
+//         .pulls(owner.0.to_owned(), repo.0.to_owned())
+//         .get_diff(pr_no)
+//         .await?;
 
-    Ok(comments.into_iter().count())
-}
+//     Ok(parse_diffs(&diff_string))
+// }
 
-async fn get_pr_diffs(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64) -> octocrab::Result<PullRequestDiff> {
-    let diff_string =
-        octocrab
-        .pulls(owner.0.to_owned(), repo.0.to_owned())
-        .get_diff(pr_no)
-        .await?;
-
-    Ok(parse_diffs(&diff_string))
-}
-
-async fn get_pr_diffs2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64) -> octocrab::Result<PullRequestDiff> {
+async fn get_pr_diffs2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64) -> R<PullRequestDiff> {
     let diff_string =
         octocrab
         .pulls(owner.0.to_owned(), repo.0.to_owned())

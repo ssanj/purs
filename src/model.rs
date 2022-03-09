@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::fmt::{self, Display};
-use octocrab;
+use octocrab::{self, Octocrab};
 use std::error::Error;
 use tokio::task::JoinHandle;
 
@@ -101,9 +101,9 @@ pub struct GitDiff {
 
 pub struct AsyncPullRequestParts {
     pub pull: octocrab::models::pulls::PullRequest,
-    pub review_count_handle: JoinHandle<octocrab::Result<usize>>,
-    pub comment_count_handle: JoinHandle<octocrab::Result<usize>>,
-    pub diffs_handle: JoinHandle<octocrab::Result<PullRequestDiff>>
+    pub review_count_handle: JoinHandle<R<usize>>,
+    pub comment_count_handle: JoinHandle<R<usize>>,
+    pub diffs_handle: JoinHandle<R<PullRequestDiff>>
 }
 
 
@@ -164,6 +164,13 @@ impl <E> From<E> for NestedError
     NestedError(error.into())
   }
 }
+
+impl From<octocrab::Error> for PursError {
+  fn from(error: octocrab::Error) -> Self {
+    PursError::Octocrab(NestedError::from(error))
+  }
+}
+
 
 // impl NestedError {
 //   pub fn from_error<E>(error: E) -> NestedError
