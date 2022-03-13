@@ -131,6 +131,7 @@ pub enum PursError {
     Octocrab(NestedError),
     JoinError(NestedError),
     GitError(String),
+    DiffParseError(NestedError),
     ProcessError(NestedError), // Maybe add more information about which process was being executed?
     MultipleErrors(Vec<PursError>)
 }
@@ -153,6 +154,7 @@ impl Display for PursError {
             PursError::GitError(error) => write!(f, "PursError.GitError: {}", error),
             PursError::ProcessError(error) => write!(f, "PursError.ProcessError: {}", error),
             PursError::MultipleErrors(errors) => write!(f, "PursError.MultipleErrors: {:?}", errors),
+            PursError::DiffParseError(error) => write!(f, "PursError.DiffParseError: {}", error),
         }
     }
 }
@@ -172,11 +174,3 @@ impl From<octocrab::Error> for PursError {
     PursError::Octocrab(NestedError::from(error))
   }
 }
-
-
-// impl NestedError {
-//   pub fn from_error<E>(error: E) -> NestedError
-//     where E: Into<DynamicError> {
-//       NestedError(error.into())
-//     }
-// }

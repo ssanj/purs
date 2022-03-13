@@ -427,30 +427,32 @@ async fn flatten<T>(handle: tokio::task::JoinHandle<R<T>>) -> R<T> {
 
 
 //TODO: Return Result with an error if the diff can't be parsed.
-fn parse_diffs(diff: &str) -> PullRequestDiff {
-    let mut patch = PatchSet::new();
-    patch.parse(diff).ok().expect("Error parsing diff");
+fn parse_diffs(diff: &str) -> R<PullRequestDiff> {
+  let mut patch = PatchSet::new();
+  let parse_result = patch.parse(diff).map_err(|e| PursError::DiffParseError(NestedError::from(e)));
 
-    let diffs = patch.files().into_iter().map (|p| {
-        let file_name =
-            // if a file is deleted there is no target file (because it's deleted)
-            // if a file is added there is no source file (because it's a new file)
-            // if a file is modified there is both a source and target file
-            if p.is_removed_file() {
-                parse_only_file_name(&p.source_file)
-            } else {
-                parse_only_file_name(&p.target_file)
-            };
+  parse_result.map(|_| {
+      let diffs = patch.files().into_iter().map (|p| {
+          let file_name =
+              // if a file is deleted there is no target file (because it's deleted)
+              // if a file is added there is no source file (because it's a new file)
+              // if a file is modified there is both a source and target file
+              if p.is_removed_file() {
+                  parse_only_file_name(&p.source_file)
+              } else {
+                  parse_only_file_name(&p.target_file)
+              };
 
-        let contents = p.to_string();
+          let contents = p.to_string();
 
-        GitDiff {
-            file_name,
-            contents
-        }
-    }).collect();
+          GitDiff {
+              file_name,
+              contents
+          }
+      }).collect();
 
-    PullRequestDiff(diffs)
+      PullRequestDiff(diffs)
+  })
 }
 
 fn parse_only_file_name(diff_file: &str) -> String {
@@ -522,7 +524,7 @@ async fn get_pr_diffs2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64)
         .get_diff(pr_no)
         .await?;
 
-    Ok(parse_diffs(&diff_string))
+    parse_diffs(&diff_string)
 }
 
 
