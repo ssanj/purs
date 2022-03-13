@@ -40,6 +40,7 @@ async fn main() -> R<()> {
         .map_err(PursError::from)?;
 
     let pr_start = Instant::now();
+    // Handle resulting errors here, instead of using `?`
     let result = get_prs3(&config, octocrab).await?;
     let time_taken = pr_start.elapsed().as_secs();
 
@@ -103,7 +104,7 @@ fn read_user_response(question: &str, limit: usize) -> Result<UserSelection, Use
   }
 }
 
-// TODO: Move to another module
+// TODO: Matching on the ssh_url and write_diff_files should be done at a higher level - not here.
 fn clone_branch(config: &Config, pull: &PullRequest) -> R<()> {
   match &pull.ssh_url {
       Some(ssh_url) => {
@@ -121,27 +122,7 @@ fn clone_branch(config: &Config, pull: &PullRequest) -> R<()> {
 
           match output {
             Ok(CmdOutput::Success) => {
-                println!("Generating diff files...");
-                // println!("{:?}", pull.diffs);
-                let file_list_path = Path::new(checkout_path.as_str()).join("diff_file_list.txt");
-                let mut file_list = File::create(&file_list_path) .unwrap();
-
-                pull.diffs.0.iter().for_each(|d| {
-                    writeln!(file_list, "{}", d.file_name).unwrap();
-
-                    let diff_file_name = format!("{}.diff", d.file_name);
-                    let diff_file = Path::new(checkout_path.as_str()).join(&diff_file_name);
-
-                    let mut f = File::create(&diff_file).unwrap();
-                    println!("Creating {}", &diff_file_name);
-                    let buf: &[u8]= d.contents.as_ref();
-                    f.write_all(buf).unwrap();
-                });
-
-                // // run_sbt_tests(checkout_path.as_str()).expect("Could not run sbt tests");
-                // // launch_sbt(checkout_path.as_str()).expect("Could not launch SBT repl");
-
-                Ok(())
+              write_diff_files(checkout_path.as_str(), &pull.diffs)
             },
             Ok(CmdOutput::Failure(exit_code)) => {
                 match exit_code {
@@ -156,6 +137,27 @@ fn clone_branch(config: &Config, pull: &PullRequest) -> R<()> {
       },
       None => Err(PursError::GitError("Can't clone branch without SSH url".to_owned()))
   }
+}
+
+// TODO: Do we want the diff file to be configurable?
+fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
+  println!("Generating diff files...");
+  let file_list_path = Path::new(checkout_path).join("diff_file_list.txt");
+  let mut file_list = File::create(&file_list_path) .unwrap();
+
+  diffs.0.iter().for_each(|d| {
+      writeln!(file_list, "{}", d.file_name).unwrap(); // TODO: Do we want to wrap this error?
+
+      let diff_file_name = format!("{}.diff", d.file_name);
+      let diff_file = Path::new(checkout_path).join(&diff_file_name);
+
+      let mut f = File::create(&diff_file).unwrap(); // TODO: Do we want to wrap this error?
+      println!("Creating {}", &diff_file_name);
+      let buf: &[u8]= d.contents.as_ref();
+      f.write_all(buf).unwrap(); // TODO: Do we want to wrap this error?
+  });
+
+  Ok(())
 }
 
 fn get_process_output(command: &mut Command) -> R<CmdOutput> {
@@ -572,69 +574,69 @@ pub fn print_info(message: String) {
   println!("{}", coloured_info)
 }
 
-fn write_file_out<P>(filename: P, working_dir: &str, pull: &PullRequest) -> io::Result<()>
-where P: AsRef<Path> + Copy {
-    let lines = read_lines(filename).expect(&format!("Could not read lines from {}", filename.as_ref().to_string_lossy()));
+// fn write_file_out<P>(filename: P, working_dir: &str, pull: &PullRequest) -> io::Result<()>
+// where P: AsRef<Path> + Copy {
+//     let lines = read_lines(filename).expect(&format!("Could not read lines from {}", filename.as_ref().to_string_lossy()));
 
-    let mut files_to_open = vec![];
-    for line_r in lines {
-        let file = line_r.expect("Could not read line");
-        let path = Path::new(working_dir).join(format!("{}.diff", file));
-        let diff_file = File::create(&path).expect(&format!("Could not create file: {}", path.as_path().to_string_lossy()));
+//     let mut files_to_open = vec![];
+//     for line_r in lines {
+//         let file = line_r.expect("Could not read line");
+//         let path = Path::new(working_dir).join(format!("{}.diff", file));
+//         let diff_file = File::create(&path).expect(&format!("Could not create file: {}", path.as_path().to_string_lossy()));
 
-        let mut diff_command = Command::new("git");
-        diff_command
-         .current_dir(working_dir)
-         .stdout(diff_file)
-         .arg("diff")
-         .arg(format!("{}..{}", &pull.base_sha, &pull.head_sha))
-         .arg("--")
-         .arg(&file);
+//         let mut diff_command = Command::new("git");
+//         diff_command
+//          .current_dir(working_dir)
+//          .stdout(diff_file)
+//          .arg("diff")
+//          .arg(format!("{}..{}", &pull.base_sha, &pull.head_sha))
+//          .arg("--")
+//          .arg(&file);
 
-         diff_command.status().expect(&format!("Could not write out file: {}", path.as_path().to_string_lossy()));
-         files_to_open.push(path);
-    }
+//          diff_command.status().expect(&format!("Could not write out file: {}", path.as_path().to_string_lossy()));
+//          files_to_open.push(path);
+//     }
 
-    let mut sublime_command = Command::new("s");
-    sublime_command
-    .arg(working_dir)
-    .arg("-n");
+//     let mut sublime_command = Command::new("s");
+//     sublime_command
+//     .arg(working_dir)
+//     .arg("-n");
 
-    files_to_open.iter().for_each(|f| {
-        sublime_command.arg(f);
-    });
+//     files_to_open.iter().for_each(|f| {
+//         sublime_command.arg(f);
+//     });
 
 
-    sublime_command.status().expect("Could not launch Sublime Text");
-    Ok(())
-}
+//     sublime_command.status().expect("Could not launch Sublime Text");
+//     Ok(())
+// }
 
 // TODO: Have an external script specified, which is given the working directory of the checkout.
 // With that and the contents of the diff_files.txt file it should be able to figure out
 // Anything it needs.
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
-    let file = File::open(filename)?;
-    Ok(io::BufReader::new(file).lines())
-}
+// fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
+// where P: AsRef<Path>, {
+//     let file = File::open(filename)?;
+//     Ok(io::BufReader::new(file).lines())
+// }
 
-fn run_sbt_tests(working_dir: &str) -> io::Result<()> {
-    let mut sbt_command = Command::new("sbt");
-    sbt_command
-    .current_dir(working_dir)
-    .arg("test");
+// fn run_sbt_tests(working_dir: &str) -> io::Result<()> {
+//     let mut sbt_command = Command::new("sbt");
+//     sbt_command
+//     .current_dir(working_dir)
+//     .arg("test");
 
-    sbt_command.status().expect("Running SBT tests failed");
-    Ok(())
-}
+//     sbt_command.status().expect("Running SBT tests failed");
+//     Ok(())
+// }
 
-fn launch_sbt(working_dir: &str) -> io::Result<()> {
-    let mut sbt_command = Command::new("sbt");
-    sbt_command
-    .current_dir(working_dir)
-    .arg("-mem")
-    .arg("2048");
+// fn launch_sbt(working_dir: &str) -> io::Result<()> {
+//     let mut sbt_command = Command::new("sbt");
+//     sbt_command
+//     .current_dir(working_dir)
+//     .arg("-mem")
+//     .arg("2048");
 
-    sbt_command.status().expect("Running SBT failed");
-    Ok(())
-}
+//     sbt_command.status().expect("Running SBT failed");
+//     Ok(())
+// }
