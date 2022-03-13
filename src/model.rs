@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::fmt::{self, Display};
 use octocrab::{self, Octocrab};
 use std::error::Error;
-use tokio::task::JoinHandle;
+use tokio::task::{JoinHandle};
 
 pub type R<T> = Result<T, PursError>;
 
@@ -172,5 +172,17 @@ impl <E> From<E> for NestedError
 impl From<octocrab::Error> for PursError {
   fn from(error: octocrab::Error) -> Self {
     PursError::Octocrab(NestedError::from(error))
+  }
+}
+
+impl From<unidiff::Error> for PursError {
+  fn from(error: unidiff::Error) -> Self {
+    PursError::DiffParseError(NestedError::from(error))
+  }
+}
+
+impl From<tokio::task::JoinError> for PursError {
+  fn from(error: tokio::task::JoinError) -> Self {
+    PursError::JoinError(NestedError::from(error))
   }
 }

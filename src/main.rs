@@ -37,7 +37,7 @@ async fn main() -> R<()> {
         OctocrabBuilder::new()
         .personal_token(token)
         .build()
-        .map_err(|e| PursError::Octocrab(NestedError::from(e)))?;
+        .map_err(PursError::from)?;
 
     let pr_start = Instant::now();
     let result = get_prs3(&config, octocrab).await?;
@@ -103,7 +103,7 @@ fn read_user_response(question: &str, limit: usize) -> Result<UserSelection, Use
   }
 }
 
-
+// TODO: Move to another module
 fn clone_branch(config: &Config, pull: &PullRequest) -> R<()> {
   match &pull.ssh_url {
       Some(ssh_url) => {
@@ -177,6 +177,7 @@ fn get_process_output(command: &mut Command) -> R<CmdOutput> {
     l
 }
 
+// TODO: We can't do anything with "default" here. Replace
 fn get_extract_path(config: &Config, pull: &PullRequest) -> String {
     let repo_name = pull.repo_name.clone().unwrap_or("default".to_string());
     let separator = format!("{}", std::path::MAIN_SEPARATOR);
@@ -256,7 +257,7 @@ async fn get_pulls(octocrab: Octocrab, owner_repo: OwnerRepo) -> R<octocrab::Pag
       .per_page(20)
       .send()
       .await
-      .map_err(|e| PursError::Octocrab(NestedError::from(e)))
+      .map_err( PursError::from)
 }
 
 async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
@@ -280,7 +281,7 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
     let page_results =
       try_join_all(page_handles)
       .await
-      .map_err(|e| PursError::JoinError(NestedError::from(e)))?;
+      .map_err( PursError::from)?;
 
     let page_repos =
       page_results
@@ -420,8 +421,7 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
 async fn flatten<T>(handle: tokio::task::JoinHandle<R<T>>) -> R<T> {
     match handle.await {
         Ok(result) => result,
-        Ok(error) => error,
-        Err(err) => Err(PursError::JoinError(NestedError::from(err))),
+        Err(err) => Err(PursError::from(err)),
     }
 }
 
@@ -429,7 +429,7 @@ async fn flatten<T>(handle: tokio::task::JoinHandle<R<T>>) -> R<T> {
 //TODO: Return Result with an error if the diff can't be parsed.
 fn parse_diffs(diff: &str) -> R<PullRequestDiff> {
   let mut patch = PatchSet::new();
-  let parse_result = patch.parse(diff).map_err(|e| PursError::DiffParseError(NestedError::from(e)));
+  let parse_result = patch.parse(diff).map_err(PursError::from);
 
   parse_result.map(|_| {
       let diffs = patch.files().into_iter().map (|p| {
@@ -609,6 +609,9 @@ where P: AsRef<Path> + Copy {
     Ok(())
 }
 
+// TODO: Have an external script specified, which is given the working directory of the checkout.
+// With that and the contents of the diff_files.txt file it should be able to figure out
+// Anything it needs.
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
 where P: AsRef<Path>, {
     let file = File::open(filename)?;
