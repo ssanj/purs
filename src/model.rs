@@ -106,7 +106,7 @@ pub struct AsyncPullRequestParts {
     pub diffs_handle: JoinHandle<R<PullRequestDiff>>
 }
 
-
+#[derive(Debug)]
 pub enum UserInputError {
     InvalidNumber(String),
     InvalidSelection{
@@ -114,6 +114,19 @@ pub enum UserInputError {
         min_selection: u8,
         max_selection: usize
     }
+}
+
+impl Display for UserInputError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+          UserInputError::InvalidNumber(number) => {
+            write!(f, "User selected an invalid option. Required a number but got: {}", number)
+          },
+          UserInputError::InvalidSelection{ selected, min_selection, max_selection} => {
+            write!(f, "User selected an invalid option: {} which is out of the expected range: [{}-{}]", selected, min_selection, max_selection)
+          },
+        }
+      }
 }
 
 #[derive(Debug)]
@@ -125,6 +138,7 @@ impl Display for NestedError {
     }
 }
 
+
 #[derive(Debug)]
 pub enum PursError {
     Other(NestedError),
@@ -133,7 +147,8 @@ pub enum PursError {
     GitError(String),
     DiffParseError(NestedError),
     ProcessError(NestedError), // Maybe add more information about which process was being executed?
-    MultipleErrors(Vec<PursError>)
+    MultipleErrors(Vec<PursError>),
+    UserError(UserInputError)
 }
 
 // impl std::error::Error for PursError {
@@ -155,6 +170,7 @@ impl Display for PursError {
             PursError::ProcessError(error) => write!(f, "PursError.ProcessError: {}", error),
             PursError::MultipleErrors(errors) => write!(f, "PursError.MultipleErrors: {:?}", errors),
             PursError::DiffParseError(error) => write!(f, "PursError.DiffParseError: {}", error),
+            PursError::UserError(error) => write!(f, "PursError.UserError: {}", error),
         }
     }
 }

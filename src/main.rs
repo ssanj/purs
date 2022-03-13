@@ -72,6 +72,79 @@ async fn main() -> R<()> {
     Ok(())
 }
 
+enum ProgramStatus {
+  UserQuit,
+  CompletedSuccessfully
+}
+
+async fn handle_program(token: String, config: &Config) -> R<ProgramStatus> {
+    let octocrab =
+        OctocrabBuilder::new()
+        .personal_token(token)
+        .build()
+        .map_err(PursError::from)?;
+
+    let pr_start = Instant::now();
+    // Handle resulting errors here, instead of using `?`
+    let pull_requests = get_prs3(config, octocrab).await?;
+    let time_taken = pr_start.elapsed().as_secs();
+
+    println!("PRs took {} seconds", time_taken);
+
+    // let pull_requests = get_dummy_prs();
+    let selection_size = pull_requests.len();
+
+    for (index, pr) in pull_requests.clone().into_iter().enumerate() {
+        println!("{:>2} - {}", index + 1, pr);
+    }
+
+    let valid_selection = handle_user_selection(selection_size, &pull_requests)?;
+    match valid_selection {
+      ValidSelection::Quit => Ok(ProgramStatus::UserQuit),
+      ValidSelection::Pr(pr) => {
+        clone_branch(&config, &pr)?;
+        Ok(ProgramStatus::CompletedSuccessfully)
+      }
+    }
+
+}
+
+enum ValidSelection {
+  Quit,
+  Pr(PullRequest)
+}
+
+fn handle_user_selection(selection_size: usize, selection_options: &Vec<PullRequest>) -> R<ValidSelection> {
+  match read_user_response("Please select a PR to clone to 'q' to exit", selection_size) {
+        Ok(response) => {
+            match response {
+                UserSelection::Number(selection) => {
+                    let selected = selection_options.get(usize::from(selection - 1)).unwrap();
+                    Ok(ValidSelection::Pr(selected.clone()))
+                },
+                UserSelection::Quit => {
+                  //TODO: Print at a higher level
+                  println!("Goodbye!");
+                  Ok(ValidSelection::Quit)
+                },
+            }
+        },
+        Err(e) => Err(PursError::UserError(e))
+           // match e {
+           //  UserInputError::InvalidNumber(invalid) => {
+           //    //TODO: Print at a higher level
+           //    println!("{} is not a valid number", invalid);
+           //    Err(PursError::UserError(e))
+           //  },
+           //  UserInputError::InvalidSelection { selected, min_selection, max_selection } => {
+           //    //TODO: Print at a higher level
+           //    println!("{} is not a number between [{} - {}]", selected, min_selection, max_selection);
+           //    Err(PursError::UserError(e))
+           //  },
+        // }
+    }
+}
+
 
 fn read_user_response(question: &str, limit: usize) -> Result<UserSelection, UserInputError> {
   println!("{}", question);
