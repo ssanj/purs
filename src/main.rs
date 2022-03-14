@@ -131,8 +131,11 @@ fn read_user_response(question: &str, limit: usize) -> Result<UserSelection, Use
 
 // TODO: Matching on the ssh_url and write_diff_files should be done at a higher level - not here.
 fn clone_branch(config: &Config, pull: &PullRequest) -> R<()> {
+  // TODO: Check before this if the SSH URL is missing and fail
+  // TODO: Only pass in what is needed to this function instead of PullRequest
   match &pull.ssh_url {
       Some(ssh_url) => {
+          //TODO: This can be done before this function the result passed in
           let checkout_path = get_extract_path(&config, &pull)?;
           print_info(format!("git clone {} -b {} {}", ssh_url, pull.branch_name.as_str(), checkout_path.as_str()));
           let mut command = Command::new("git") ;
