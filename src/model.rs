@@ -145,6 +145,7 @@ pub enum PursError {
     Octocrab(NestedError),
     JoinError(NestedError),
     GitError(String),
+    PullRequestHasNoRepo(String),
     DiffParseError(NestedError),
     ProcessError(NestedError), // Maybe add more information about which process was being executed?
     MultipleErrors(Vec<PursError>),
@@ -167,6 +168,7 @@ impl Display for PursError {
             PursError::Octocrab(error) => write!(f, "PursError.Octocrab: {}", error),
             PursError::JoinError(error) => write!(f, "PursError.JoinError: {}", error),
             PursError::GitError(error) => write!(f, "PursError.GitError: {}", error),
+            PursError::PullRequestHasNoRepo(error) => write!(f, "PursError.PullRequestHasNoRepo: {}", error),
             PursError::ProcessError(error) => write!(f, "PursError.ProcessError: {}", error),
             PursError::MultipleErrors(errors) => write!(f, "PursError.MultipleErrors: {:?}", errors),
             PursError::DiffParseError(error) => write!(f, "PursError.DiffParseError: {}", error),

@@ -71,6 +71,7 @@ async fn handle_program(token: String, config: &Config) -> R<ProgramStatus> {
       ValidSelection::Quit => Ok(ProgramStatus::UserQuit),
       ValidSelection::Pr(pr) => {
         clone_branch(&config, &pr)?;
+        //TODO: Handle diffing here instead of in clone_branch
         Ok(ProgramStatus::CompletedSuccessfully)
       }
     }
@@ -132,7 +133,7 @@ fn read_user_response(question: &str, limit: usize) -> Result<UserSelection, Use
 fn clone_branch(config: &Config, pull: &PullRequest) -> R<()> {
   match &pull.ssh_url {
       Some(ssh_url) => {
-          let checkout_path = get_extract_path(&config, &pull);
+          let checkout_path = get_extract_path(&config, &pull)?;
           print_info(format!("git clone {} -b {} {}", ssh_url, pull.branch_name.as_str(), checkout_path.as_str()));
           let mut command = Command::new("git") ;
             command
@@ -203,11 +204,18 @@ fn get_process_output(command: &mut Command) -> R<CmdOutput> {
     l
 }
 
-// TODO: We can't do anything with "default" here. Replace
-fn get_extract_path(config: &Config, pull: &PullRequest) -> String {
-    let repo_name = pull.repo_name.clone().unwrap_or("default".to_string());
+fn get_extract_path(config: &Config, pull: &PullRequest) -> R<String> {
+    let repo_name = pull.repo_name.clone().ok_or(PursError::PullRequestHasNoRepo(format!("Pull request #{} as no repo specified", pull.pr_number)))?;
     let separator = format!("{}", std::path::MAIN_SEPARATOR);
-    vec![config.working_dir.to_string_lossy().to_string(), repo_name, pull.branch_name.clone(), pull.head_sha.clone()].join(&separator).to_string()
+    let extraction_path =
+      vec![
+        config.working_dir.to_string_lossy().to_string(),
+        repo_name,
+        pull.branch_name.clone(),
+        pull.head_sha.clone()
+      ].join(&separator).to_string();
+
+    Ok(extraction_path)
 }
 
 // async fn get_prs2(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
