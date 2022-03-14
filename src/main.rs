@@ -24,6 +24,7 @@ async fn main() -> R<()> {
 
     let token = std::env::var("GH_ACCESS_TOKEN").expect("Could not find Github Personal Access Token");
 
+    //TODO: Retrieve from Config
     let repo1 = OwnerRepo(Owner("disneystreaming".to_string()), Repo("weaver-test".to_string()));
     let repo2 = OwnerRepo(Owner("scalatest".to_string()), Repo("scalatest".to_string()));
 
@@ -33,54 +34,21 @@ async fn main() -> R<()> {
             repositories: NonEmptyVec::new(repo1, vec![repo2])
         };
 
-    let octocrab =
-        OctocrabBuilder::new()
-        .personal_token(token)
-        .build()
-        .map_err(PursError::from)?;
+    let program_result = handle_program(token, &config).await;
 
-    let pr_start = Instant::now();
-    // Handle resulting errors here, instead of using `?`
-    let result = get_prs3(&config, octocrab).await?;
-    let time_taken = pr_start.elapsed().as_secs();
-
-    println!("PRs took {} seconds", time_taken);
-
-    // let result = get_dummy_prs();
-    let length = result.len();
-
-    for (index, pr) in result.clone().into_iter().enumerate() {
-        println!("{:>2} - {}", index + 1, pr);
-    }
-
-    match read_user_response("Please select a PR to clone to 'q' to exit", length) {
-        Ok(response) => {
-            match response {
-                UserSelection::Number(selection) => {
-                    let selected = result.get(usize::from(selection - 1)).expect("Invalid index");
-                    clone_branch(&config, &selected).unwrap()
-                },
-                UserSelection::Quit => println!("Goodbye!"),
-            }
-        },
-        Err(e) => match e {
-            UserInputError::InvalidNumber(invalid) => println!("{} is not a valid number", invalid),
-            UserInputError::InvalidSelection { selected, min_selection, max_selection } => println!("{} is not a number between [{} - {}]", selected, min_selection, max_selection),
-        }
+    match program_result {
+      Ok(ProgramStatus::UserQuit) =>  println!("Goodbye!"),
+      Ok(ProgramStatus::CompletedSuccessfully) => println!("purs completed successfully"),
+      Err(purs_error) => println!("{}", purs_error)
     }
 
     Ok(())
 }
 
-enum ProgramStatus {
-  UserQuit,
-  CompletedSuccessfully
-}
-
 async fn handle_program(token: String, config: &Config) -> R<ProgramStatus> {
     let octocrab =
         OctocrabBuilder::new()
-        .personal_token(token)
+        .personal_token(token.to_owned())
         .build()
         .map_err(PursError::from)?;
 
@@ -89,7 +57,7 @@ async fn handle_program(token: String, config: &Config) -> R<ProgramStatus> {
     let pull_requests = get_prs3(config, octocrab).await?;
     let time_taken = pr_start.elapsed().as_secs();
 
-    println!("PRs took {} seconds", time_taken);
+    println!("GH API calls took {} seconds", time_taken);
 
     // let pull_requests = get_dummy_prs();
     let selection_size = pull_requests.len();
@@ -109,40 +77,23 @@ async fn handle_program(token: String, config: &Config) -> R<ProgramStatus> {
 
 }
 
-enum ValidSelection {
-  Quit,
-  Pr(PullRequest)
-}
+
 
 fn handle_user_selection(selection_size: usize, selection_options: &Vec<PullRequest>) -> R<ValidSelection> {
   match read_user_response("Please select a PR to clone to 'q' to exit", selection_size) {
-        Ok(response) => {
-            match response {
-                UserSelection::Number(selection) => {
-                    let selected = selection_options.get(usize::from(selection - 1)).unwrap();
-                    Ok(ValidSelection::Pr(selected.clone()))
-                },
-                UserSelection::Quit => {
-                  //TODO: Print at a higher level
-                  println!("Goodbye!");
-                  Ok(ValidSelection::Quit)
-                },
-            }
-        },
-        Err(e) => Err(PursError::UserError(e))
-           // match e {
-           //  UserInputError::InvalidNumber(invalid) => {
-           //    //TODO: Print at a higher level
-           //    println!("{} is not a valid number", invalid);
-           //    Err(PursError::UserError(e))
-           //  },
-           //  UserInputError::InvalidSelection { selected, min_selection, max_selection } => {
-           //    //TODO: Print at a higher level
-           //    println!("{} is not a number between [{} - {}]", selected, min_selection, max_selection);
-           //    Err(PursError::UserError(e))
-           //  },
-        // }
-    }
+    Ok(response) => {
+        match response {
+            UserSelection::Number(selection) => {
+                let selected = selection_options.get(usize::from(selection - 1)).unwrap();
+                Ok(ValidSelection::Pr(selected.clone()))
+            },
+            UserSelection::Quit => {
+              Ok(ValidSelection::Quit)
+            },
+        }
+    },
+    Err(e) => Err(PursError::UserError(e))
+  }
 }
 
 

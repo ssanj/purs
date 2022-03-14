@@ -202,3 +202,13 @@ impl From<tokio::task::JoinError> for PursError {
     PursError::JoinError(NestedError::from(error))
   }
 }
+
+pub enum ProgramStatus {
+  UserQuit,
+  CompletedSuccessfully
+}
+
+pub enum ValidSelection {
+  Quit,
+  Pr(PullRequest)
+}
