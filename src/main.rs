@@ -20,7 +20,7 @@ use futures::stream::{self, StreamExt};
 mod model;
 
 #[tokio::main]
-async fn main() -> R<()> {
+async fn main() {
 
     let token = std::env::var("GH_ACCESS_TOKEN").expect("Could not find Github Personal Access Token");
 
@@ -41,11 +41,20 @@ async fn main() -> R<()> {
       Ok(ProgramStatus::CompletedSuccessfully) => println!("purs completed successfully"),
       Err(purs_error) => println!("{}", purs_error)
     }
-
-    Ok(())
 }
 
+#[derive(Clone)]
+struct GitRepoSshUrl(String);
+
+#[derive(Clone)]
+struct RepoCheckoutPath(String);
+
+#[derive(Clone)]
+struct RepoBranchName(String);
+
 async fn handle_program(token: String, config: &Config) -> R<ProgramStatus> {
+
+    //TODO: Move to another function
     let octocrab =
         OctocrabBuilder::new()
         .personal_token(token.to_owned())
@@ -53,11 +62,10 @@ async fn handle_program(token: String, config: &Config) -> R<ProgramStatus> {
         .map_err(PursError::from)?;
 
     let pr_start = Instant::now();
-    // Handle resulting errors here, instead of using `?`
     let pull_requests = get_prs3(config, octocrab).await?;
-    let time_taken = pr_start.elapsed().as_secs();
+    let time_taken = pr_start.elapsed().as_millis();
 
-    println!("GH API calls took {} seconds", time_taken);
+    println!("GH API calls took {} ms", time_taken);
 
     // let pull_requests = get_dummy_prs();
     let selection_size = pull_requests.len();
@@ -70,14 +78,17 @@ async fn handle_program(token: String, config: &Config) -> R<ProgramStatus> {
     match valid_selection {
       ValidSelection::Quit => Ok(ProgramStatus::UserQuit),
       ValidSelection::Pr(pr) => {
-        clone_branch(&config, &pr)?;
-        //TODO: Handle diffing here instead of in clone_branch
+        let ssh_url = GitRepoSshUrl(pr.ssh_url.clone().ok_or(PursError::PullRequestHasNoSSHUrl(format!("Pull request #{} as no SSH Url specified", &pr.pr_number)))?.to_owned());
+        let checkout_path = RepoCheckoutPath(get_extract_path(&config, &pr)?);
+        let branch_name = RepoBranchName(pr.branch_name.clone());
+
+        clone_branch(ssh_url, checkout_path.clone(), branch_name, &config,&pr)?;
+        write_diff_files(checkout_path.0.as_str(), &pr.diffs)?;
+
         Ok(ProgramStatus::CompletedSuccessfully)
       }
     }
-
 }
-
 
 
 fn handle_user_selection(selection_size: usize, selection_options: &Vec<PullRequest>) -> R<ValidSelection> {
@@ -129,48 +140,40 @@ fn read_user_response(question: &str, limit: usize) -> Result<UserSelection, Use
   }
 }
 
-// TODO: Matching on the ssh_url and write_diff_files should be done at a higher level - not here.
-fn clone_branch(config: &Config, pull: &PullRequest) -> R<()> {
-  // TODO: Check before this if the SSH URL is missing and fail
-  // TODO: Only pass in what is needed to this function instead of PullRequest
-  match &pull.ssh_url {
-      Some(ssh_url) => {
-          //TODO: This can be done before this function the result passed in
-          let checkout_path = get_extract_path(&config, &pull)?;
-          print_info(format!("git clone {} -b {} {}", ssh_url, pull.branch_name.as_str(), checkout_path.as_str()));
-          let mut command = Command::new("git") ;
-            command
-            .arg("clone")
-            .arg(ssh_url)
-            .arg("-b")
-            .arg(pull.branch_name.as_str())
-            .arg(checkout_path.as_str());
+fn clone_branch(ssh_url: GitRepoSshUrl, checkout_path: RepoCheckoutPath, branch_name: RepoBranchName, config: &Config, pull: &PullRequest) -> R<()> {
+    print_info(format!("git clone {} -b {} {}", ssh_url.0, branch_name.0.as_str(), checkout_path.0.as_str()));
+    let mut command = Command::new("git") ;
+      command
+      .arg("clone")
+      .arg(ssh_url.0)
+      .arg("-b")
+      .arg(branch_name.0.as_str())
+      .arg(checkout_path.0.as_str());
 
-          let output = get_process_output(&mut command);
+    let git_clone_result = get_process_output(&mut command);
 
-          match output {
-            Ok(CmdOutput::Success) => {
-              write_diff_files(checkout_path.as_str(), &pull.diffs)
-            },
-            Ok(CmdOutput::Failure(exit_code)) => {
-                match exit_code {
-                    ExitCode::Code(code) => print_error(format!("Git exited with exit code: {}", code)),
-                    ExitCode::Terminated => print_error("Git was terminated".to_string()),
-                }
-
-                Ok(())
-            },
-            Err(e) => Err(PursError::GitError(format!("Could not run Git: {}", e))),
+    let _ = match git_clone_result {
+      Ok(CmdOutput::Success) => {}, //Success will be returned at the end of the function
+      Ok(CmdOutput::Failure(exit_code)) => {
+          match exit_code {
+              ExitCode::Code(code) => Err(PursError::GitError(format!("Git exited with exit code: {}", code)))?,
+              ExitCode::Terminated => Err(PursError::GitError("Git was terminated".to_string()))?,
           }
       },
-      None => Err(PursError::GitError("Can't clone branch without SSH url".to_owned()))
-  }
+      Err(e2) => {
+        let e1 = PursError::GitError(format!("Error running Git"));
+        Err(PursError::MultipleErrors(vec![e1, e2]))?
+      },
+    };
+
+    Ok(())
 }
 
 // TODO: Do we want the diff file to be configurable?
 fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
   println!("Generating diff files...");
   let file_list_path = Path::new(checkout_path).join("diff_file_list.txt");
+  // TODO: Do we want to wrap this error?
   let mut file_list = File::create(&file_list_path) .unwrap();
 
   diffs.0.iter().for_each(|d| {
@@ -297,6 +300,7 @@ async fn get_pulls(octocrab: Octocrab, owner_repo: OwnerRepo) -> R<octocrab::Pag
       .map_err( PursError::from)
 }
 
+//TODO: Can we break this up into multiple functions?
 async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
 
     let page_handles =
@@ -323,6 +327,7 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
     let page_repos =
       page_results
       .into_iter()
+      //TODO: Do we need to handle the errors of this?
       .map(|rp| rp.unwrap())
       .collect::<Vec<_>>();
 
