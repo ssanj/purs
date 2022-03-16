@@ -38,8 +38,8 @@ async fn main() {
 
     match program_result {
       Ok(ProgramStatus::UserQuit) =>  println!("Goodbye!"),
-      Ok(ProgramStatus::CompletedSuccessfully) => println!("purs completed successfully"),
-      Err(purs_error) => println!("{}", purs_error)
+      Ok(ProgramStatus::CompletedSuccessfully) => println!("Purs completed successfully"),
+      Err(purs_error) => println!("Purs Error: {}", purs_error)
     }
 }
 
