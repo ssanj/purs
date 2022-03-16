@@ -1,4 +1,5 @@
-use std::path::PathBuf;
+use std::ffi::OsStr;
+use std::path::{PathBuf, self};
 use std::fmt::{self, Display};
 use octocrab::{self, Octocrab};
 use std::error::Error;
@@ -215,4 +216,72 @@ pub enum ProgramStatus {
 pub enum ValidSelection {
   Quit,
   Pr(PullRequest)
+}
+
+#[derive(Clone)]
+pub struct GitRepoSshUrl(String);
+
+impl AsRef<OsStr> for GitRepoSshUrl {
+  fn as_ref(&self) -> &OsStr {
+    println!("AsRef<OsStr> for GitRepoSshUrl");
+    OsStr::new(&self.0)
+  }
+}
+
+impl GitRepoSshUrl {
+  pub fn new(repo: String) -> Self {
+    GitRepoSshUrl(repo)
+  }
+}
+
+impl Display for GitRepoSshUrl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{}", self.0)
+    }
+}
+
+
+#[derive(Clone)]
+pub struct RepoCheckoutPath(String);
+
+impl RepoCheckoutPath {
+  pub fn new(path: String) -> Self {
+    RepoCheckoutPath(path)
+  }
+}
+
+impl Display for RepoCheckoutPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{}", self.0)
+    }
+}
+
+impl AsRef<str> for RepoCheckoutPath {
+  fn as_ref(&self) -> &str {
+    println!("AsRef<str> for RepoCheckoutPath");
+    &self.0
+  }
+}
+
+#[derive(Clone)]
+pub struct RepoBranchName(String);
+
+
+impl Display for RepoBranchName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{}", self.0)
+    }
+}
+
+impl AsRef<str> for RepoBranchName {
+  fn as_ref(&self) -> &str {
+    println!("AsRef<str> for RepoBranchName");
+    &self.0
+  }
+}
+
+impl RepoBranchName {
+  pub fn new(branch: String) -> Self {
+    RepoBranchName(branch)
+  }
 }

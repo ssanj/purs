@@ -43,15 +43,6 @@ async fn main() {
     }
 }
 
-#[derive(Clone)]
-struct GitRepoSshUrl(String);
-
-#[derive(Clone)]
-struct RepoCheckoutPath(String);
-
-#[derive(Clone)]
-struct RepoBranchName(String);
-
 async fn handle_program(token: String, config: &Config) -> R<ProgramStatus> {
 
     //TODO: Move to another function
@@ -78,12 +69,12 @@ async fn handle_program(token: String, config: &Config) -> R<ProgramStatus> {
     match valid_selection {
       ValidSelection::Quit => Ok(ProgramStatus::UserQuit),
       ValidSelection::Pr(pr) => {
-        let ssh_url = GitRepoSshUrl(pr.ssh_url.clone().ok_or(PursError::PullRequestHasNoSSHUrl(format!("Pull request #{} as no SSH Url specified", &pr.pr_number)))?.to_owned());
-        let checkout_path = RepoCheckoutPath(get_extract_path(&config, &pr)?);
-        let branch_name = RepoBranchName(pr.branch_name.clone());
+        let ssh_url = GitRepoSshUrl::new(pr.ssh_url.clone().ok_or(PursError::PullRequestHasNoSSHUrl(format!("Pull request #{} as no SSH Url specified", &pr.pr_number)))?.to_owned());
+        let checkout_path = RepoCheckoutPath::new(get_extract_path(&config, &pr)?);
+        let branch_name = RepoBranchName::new(pr.branch_name.clone());
 
         clone_branch(ssh_url, checkout_path.clone(), branch_name, &config,&pr)?;
-        write_diff_files(checkout_path.0.as_str(), &pr.diffs)?;
+        write_diff_files(checkout_path.as_ref(), &pr.diffs)?;
 
         Ok(ProgramStatus::CompletedSuccessfully)
       }
@@ -141,14 +132,14 @@ fn read_user_response(question: &str, limit: usize) -> Result<UserSelection, Use
 }
 
 fn clone_branch(ssh_url: GitRepoSshUrl, checkout_path: RepoCheckoutPath, branch_name: RepoBranchName, config: &Config, pull: &PullRequest) -> R<()> {
-    print_info(format!("git clone {} -b {} {}", ssh_url.0, branch_name.0.as_str(), checkout_path.0.as_str()));
+    print_info(format!("git clone {} -b {} {}", ssh_url, branch_name, checkout_path));
     let mut command = Command::new("git") ;
       command
       .arg("clone")
-      .arg(ssh_url.0)
+      .arg(ssh_url)
       .arg("-b")
-      .arg(branch_name.0.as_str())
-      .arg(checkout_path.0.as_str());
+      .arg(branch_name.as_ref())
+      .arg(checkout_path.as_ref());
 
     let git_clone_result = get_process_output(&mut command);
 
