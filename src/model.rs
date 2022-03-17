@@ -212,7 +212,6 @@ pub struct GitRepoSshUrl(String);
 
 impl AsRef<OsStr> for GitRepoSshUrl {
   fn as_ref(&self) -> &OsStr {
-    println!("AsRef<OsStr> for GitRepoSshUrl");
     OsStr::new(&self.0)
   }
 }
@@ -263,7 +262,6 @@ impl Display for RepoBranchName {
 
 impl AsRef<str> for RepoBranchName {
   fn as_ref(&self) -> &str {
-    println!("AsRef<str> for RepoBranchName");
     &self.0
   }
 }
