@@ -1,10 +1,8 @@
 use futures::FutureExt;
-use futures::future::{join, join_all, try_join_all};
-use octocrab::models::Contents;
+use futures::future::try_join_all;
 use octocrab::{self, OctocrabBuilder, Octocrab};
 use octocrab::params;
 use crate::model::*;
-use std::error::Error;
 use std::io::{self, BufRead, Write};
 use std::path::Path;
 use std::process::Command;
@@ -13,8 +11,6 @@ use std::fs::File;
 extern crate unidiff;
 use unidiff::PatchSet;
 use std::time::Instant;
-use std::collections::HashMap;
-use tokio::task::JoinHandle;
 use futures::stream::{self, StreamExt};
 
 mod model;
@@ -73,7 +69,7 @@ async fn handle_program(token: String, config: &Config) -> R<ProgramStatus> {
         let checkout_path = RepoCheckoutPath::new(get_extract_path(&config, &pr)?);
         let branch_name = RepoBranchName::new(pr.branch_name.clone());
 
-        clone_branch(ssh_url, checkout_path.clone(), branch_name, &config,&pr)?;
+        clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
         write_diff_files(checkout_path.as_ref(), &pr.diffs)?;
 
         Ok(ProgramStatus::CompletedSuccessfully)
@@ -131,7 +127,7 @@ fn read_user_response(question: &str, limit: usize) -> Result<UserSelection, Use
   }
 }
 
-fn clone_branch(ssh_url: GitRepoSshUrl, checkout_path: RepoCheckoutPath, branch_name: RepoBranchName, config: &Config, pull: &PullRequest) -> R<()> {
+fn clone_branch(ssh_url: GitRepoSshUrl, checkout_path: RepoCheckoutPath, branch_name: RepoBranchName) -> R<()> {
     print_info(format!("git clone {} -b {} {}", ssh_url, branch_name, checkout_path));
     let mut command = Command::new("git") ;
       command

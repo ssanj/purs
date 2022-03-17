@@ -1,9 +1,8 @@
 use std::ffi::OsStr;
-use std::path::{PathBuf, self};
+use std::path::PathBuf;
 use std::fmt::{self, Display};
-use octocrab::{self, Octocrab};
 use std::error::Error;
-use tokio::task::{JoinHandle};
+use tokio::task::JoinHandle;
 
 pub type R<T> = Result<T, PursError>;
 
@@ -62,6 +61,7 @@ pub struct NonEmptyVec<T> {
 }
 
 impl <T: Clone> NonEmptyVec<T> {
+    #[allow(dead_code)]
     pub fn one(first: T) -> NonEmptyVec<T> {
         NonEmptyVec {
             first,
@@ -76,6 +76,7 @@ impl <T: Clone> NonEmptyVec<T> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn head(&self) -> T {
         self.first.clone()
     }
@@ -142,7 +143,6 @@ impl Display for NestedError {
 
 #[derive(Debug)]
 pub enum PursError {
-    Other(NestedError),
     Octocrab(NestedError),
     JoinError(NestedError),
     GitError(String),
@@ -154,19 +154,9 @@ pub enum PursError {
     UserError(UserInputError)
 }
 
-// impl std::error::Error for PursError {
-//     fn source(&self) -> Option<&(dyn Error + 'static)> {
-//         match self {
-//             PursError::Other(error) =>  Some(error.as_ref()),
-//             PursError::Octocrab(error) =>  Some(error)
-//         }
-//     }
-// }
-
 impl Display for PursError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PursError::Other(error) => write!(f, "PursError.Other: {}", error),
             PursError::Octocrab(error) => write!(f, "PursError.Octocrab: {}", error),
             PursError::JoinError(error) => write!(f, "PursError.JoinError: {}", error),
             PursError::GitError(error) => write!(f, "PursError.GitError: {}", error),
@@ -258,7 +248,6 @@ impl Display for RepoCheckoutPath {
 
 impl AsRef<str> for RepoCheckoutPath {
   fn as_ref(&self) -> &str {
-    println!("AsRef<str> for RepoCheckoutPath");
     &self.0
   }
 }
