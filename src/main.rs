@@ -65,8 +65,14 @@ async fn handle_program(token: String, config: &Config) -> R<ProgramStatus> {
     match valid_selection {
       ValidSelection::Quit => Ok(ProgramStatus::UserQuit),
       ValidSelection::Pr(pr) => {
-        let ssh_url = GitRepoSshUrl::new(pr.ssh_url.clone().ok_or(PursError::PullRequestHasNoSSHUrl(format!("Pull request #{} as no SSH Url specified", &pr.pr_number)))?.to_owned());
-        let checkout_path = RepoCheckoutPath::new(get_extract_path(&config, &pr)?);
+        let ssh_url =
+          GitRepoSshUrl::new(
+        pr
+              .ssh_url
+              .clone()
+              .ok_or_else(|| PursError::PullRequestHasNoSSHUrl(format!("Pull request #{} as no SSH Url specified", &pr.pr_number)))?
+          );
+        let checkout_path = RepoCheckoutPath::new(get_extract_path(config, &pr)?);
         let branch_name = RepoBranchName::new(pr.branch_name.clone());
 
         clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
@@ -78,7 +84,7 @@ async fn handle_program(token: String, config: &Config) -> R<ProgramStatus> {
 }
 
 
-fn handle_user_selection(selection_size: usize, selection_options: &Vec<PullRequest>) -> R<ValidSelection> {
+fn handle_user_selection(selection_size: usize, selection_options: &[PullRequest]) -> R<ValidSelection> {
   match read_user_response("Please select a PR to clone to 'q' to exit", selection_size) {
     Ok(response) => {
         match response {
@@ -105,14 +111,14 @@ fn read_user_response(question: &str, limit: usize) -> Result<UserSelection, Use
 
   let line = buffer.lines().next().expect("Could not extract line");
 
-  match &line[..] {
+  match line {
      "q" | "Q" => Ok(UserSelection::Quit),
      num =>
         num.parse::<u8>()
         .map_err( |_| UserInputError::InvalidNumber(num.to_string()))
         .and_then(|n| {
             let input = usize::from(n);
-            if  input <= 0 || input > limit {
+            if  input == 0 || input > limit {
                 Err(
                     UserInputError::InvalidSelection {
                         selected: n,
@@ -143,13 +149,13 @@ fn clone_branch(ssh_url: GitRepoSshUrl, checkout_path: RepoCheckoutPath, branch_
       Ok(CmdOutput::Success) => {}, //Success will be returned at the end of the function
       Ok(CmdOutput::Failure(exit_code)) => {
           match exit_code {
-              ExitCode::Code(code) => Err(PursError::GitError(format!("Git exited with exit code: {}", code)))?,
-              ExitCode::Terminated => Err(PursError::GitError("Git was terminated".to_string()))?,
+              ExitCode::Code(code) => return Err(PursError::GitError(format!("Git exited with exit code: {}", code))),
+              ExitCode::Terminated => return Err(PursError::GitError("Git was terminated".to_string())),
           }
       },
       Err(e2) => {
-        let e1 = PursError::GitError(format!("Error running Git"));
-        Err(PursError::MultipleErrors(vec![e1, e2]))?
+        let e1 = PursError::GitError("Error running Git".to_string());
+        return Err(PursError::MultipleErrors(vec![e1, e2]))
       },
     };
 
@@ -184,7 +190,7 @@ fn get_process_output(command: &mut Command) -> R<CmdOutput> {
       .status()
       .map_err(|e| PursError::ProcessError(NestedError::from(e)));
 
-    let l = result.map(|r|{
+    result.map(|r|{
         if r.success() {
             CmdOutput::Success
         } else {
@@ -192,13 +198,12 @@ fn get_process_output(command: &mut Command) -> R<CmdOutput> {
             .map(|c| CmdOutput::Failure(ExitCode::Code(c)))
             .unwrap_or(CmdOutput::Failure(ExitCode::Terminated))
         }
-    });
+    })
 
-    l
 }
 
 fn get_extract_path(config: &Config, pull: &PullRequest) -> R<String> {
-    let repo_name = pull.repo_name.clone().ok_or(PursError::PullRequestHasNoRepo(format!("Pull request #{} as no repo specified", pull.pr_number)))?;
+    let repo_name = pull.repo_name.clone().ok_or_else(|| PursError::PullRequestHasNoRepo(format!("Pull request #{} as no repo specified", pull.pr_number)))?;
     let separator = format!("{}", std::path::MAIN_SEPARATOR);
     let extraction_path =
       vec![
@@ -206,7 +211,7 @@ fn get_extract_path(config: &Config, pull: &PullRequest) -> R<String> {
         repo_name,
         pull.branch_name.clone(),
         pull.head_sha.clone()
-      ].join(&separator).to_string();
+      ].join(&separator);
 
     Ok(extraction_path)
 }
@@ -296,14 +301,12 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
       .to_vec()
       .into_iter()
       .map(|owner_repo| {
-        let handle=
-            tokio::task::spawn(
-          get_pulls(
-                  octocrab.clone(), owner_repo.clone()
-                )
-                .map(|hr| { hr.map(|h| (h, owner_repo)) }) //write a help function for this
-            );
-            handle
+        tokio::task::spawn(
+      get_pulls(
+              octocrab.clone(), owner_repo.clone()
+            )
+            .map(|hr| { hr.map(|h| (h, owner_repo)) }) //write a help function for this
+        )
       }).collect::<Vec<_>>();
 
     let page_results =
@@ -318,7 +321,7 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
       .map(|rp| rp.unwrap())
       .collect::<Vec<_>>();
 
-    let async_parts = page_repos.into_iter().map(|(page, OwnerRepo(owner, repo))| {
+    let async_parts = page_repos.iter().map(|(page, OwnerRepo(owner, repo))| {
             page.into_iter().map(|pull| {
                 let pr_no = pull.number;
                 let review_count_handle = tokio::spawn(get_reviews2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
@@ -326,15 +329,15 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
                 let diffs_handle = tokio::spawn(get_pr_diffs2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
 
                 AsyncPullRequestParts {
-                    pull,
+                    pull: pull.clone(),
                     review_count_handle,
                     comment_count_handle,
                     diffs_handle
                 }
             }).collect::<Vec<_>>()
-    }).collect::<Vec<_>>();
+    });
 
-    let parts = async_parts.into_iter().flatten().collect::<Vec<_>>();
+    let parts = async_parts.flatten().collect::<Vec<_>>();
     let parts_stream = stream::iter(parts);
 
     let pr_stream =
@@ -350,7 +353,7 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
                   Ok((review_count, comment_count, diffs)) => {
 
                     let pr_no = pull.number;
-                    let title = pull.title.clone().unwrap_or("-".to_string());
+                    let title = pull.title.clone().unwrap_or_else(|| "-".to_string());
                     let ssh_url = pull.head.repo.clone().and_then(|r| (r.ssh_url));
                     let head_sha = pull.head.sha;
                     let repo_name = pull.head.repo.clone().and_then(|r| r.full_name);
@@ -461,7 +464,7 @@ fn parse_diffs(diff: &str) -> R<PullRequestDiff> {
   let parse_result = patch.parse(diff).map_err(PursError::from);
 
   parse_result.map(|_| {
-      let diffs = patch.files().into_iter().map (|p| {
+      let diffs = patch.files().iter().map (|p| {
           let file_name =
               // if a file is deleted there is no target file (because it's deleted)
               // if a file is added there is no source file (because it's a new file)
@@ -597,7 +600,7 @@ pub fn print_error(message: String) {
 }
 
 pub fn print_info(message: String) {
-  let coloured_info = Colour::Green.paint(format!("{}", message));
+  let coloured_info = Colour::Green.paint(message);
   println!("{}", coloured_info)
 }
 

@@ -82,8 +82,7 @@ impl <T: Clone> NonEmptyVec<T> {
     }
 
     pub fn to_vec(&self) -> Vec<T> {
-        let mut v = vec![];
-        v.push(self.first.clone());
+        let mut v = vec![self.first.clone()];
         v.append(&mut self.rest.clone());
         v
     }
