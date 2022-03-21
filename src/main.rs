@@ -4,40 +4,106 @@ use octocrab::{self, OctocrabBuilder, Octocrab};
 use octocrab::params;
 use crate::model::*;
 use std::io::{self, BufRead, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::str::FromStr;
 use ansi_term::Colour;
 use std::fs::File;
 extern crate unidiff;
 use unidiff::PatchSet;
 use std::time::Instant;
 use futures::stream::{self, StreamExt};
+use clap::{App, Arg};
 
 mod model;
 
 #[tokio::main]
 async fn main() {
 
-    let token = std::env::var("GH_ACCESS_TOKEN").expect("Could not find Github Personal Access Token");
+  const APPVERSION: &str = env!("CARGO_PKG_VERSION");
 
-    //TODO: Retrieve from Config
-    let repo1 = OwnerRepo(Owner("disneystreaming".to_string()), Repo("weaver-test".to_string()));
-    let repo2 = OwnerRepo(Owner("scalatest".to_string()), Repo("scalatest".to_string()));
+  let app =
+    App::new("purs")
+    .version(APPVERSION)
+    .author("Sanj Sahayam")
+    .about("List and checkout open Pull Requests on a GitHub repository")
+    .arg(
+        Arg::new("repo")
+            .short('r')
+            .long("repo")
+            .multiple_occurrences(true)
+            .takes_value(true)
+            .required(true)
+            .help("one or more GitHub repositories to include in the form: <owner>/<repo>"),
+    )
+    .arg(
+        Arg::new("script")
+            .short('s')
+            .long("script")
+            .takes_value(true)
+            .help("Optional script to run after cloning repository")
+    )
+    .arg(
+        Arg::new("working_dir")
+            .short('w')
+            .long("wd")
+            .takes_value(true)
+            .help("Optional working directory. Defaults to ~/.purs")
+    );
 
-    let config =
-        Config {
-            working_dir: Path::new("/Users/sanj/ziptemp/prs").to_path_buf(),
-            repositories: NonEmptyVec::new(repo1, vec![repo2])
-        };
+  let matches = app.get_matches();
 
-    let program_result = handle_program(token, &config).await;
+  if let Some(repos) = matches.values_of("repo") {
+    //TODO: Validate repo format
+    println!("Got repos: {:?}", repos.collect::<Vec<_>>());
+    let script_option =
+      match matches.value_of("script") {
+        Some(script) => {
+          let script_path = PathBuf::from_str(script);
+          match script_path {
+            Ok(valid_script) => ScriptType::Script(valid_script),
+            Err(e) => ScriptType::InvalidScript(script.to_string(), NestedError::from(e))
+          }
+        },
+        None => ScriptType::NoScript
+      };
 
-    match program_result {
-      Ok(ProgramStatus::UserQuit) =>  println!("Goodbye!"),
-      Ok(ProgramStatus::CompletedSuccessfully) => println!("Purs completed successfully"),
-      Err(purs_error) => println!("Purs Error: {}", purs_error)
-    }
+    println!("script option: {:?}", script_option);
+
+    let working_dir = match matches.value_of("working_dir") {
+      Some(custom_working_dir) => todo!(),
+      None => WorkingDirectory::new(Path::new("~/.purs"))
+    };
+
+    println!("working_dir: {}", working_dir)
+  } else {
+    todo!()
+    //error <- should not be called because repos is mandatory
+  }
+
+
+    // let token = std::env::var("GH_ACCESS_TOKEN").expect("Could not find Github Personal Access Token");
+
+    // //TODO: Retrieve from Config
+    // let repo1 = OwnerRepo(Owner("disneystreaming".to_string()), Repo("weaver-test".to_string()));
+    // let repo2 = OwnerRepo(Owner("scalatest".to_string()), Repo("scalatest".to_string()));
+
+    // let config =
+    //     Config {
+    //         working_dir: Path::new("/Users/sanj/ziptemp/prs").to_path_buf(),
+    //         repositories: NonEmptyVec::new(repo1, vec![repo2])
+    //     };
+
+    // let program_result = handle_program(token, &config).await;
+
+    // match program_result {
+    //   Ok(ProgramStatus::UserQuit) =>  println!("Goodbye!"),
+    //   Ok(ProgramStatus::CompletedSuccessfully) => println!("Purs completed successfully"),
+    //   Err(purs_error) => println!("Purs Error: {}", purs_error)
+    // }
 }
+
+
 
 async fn handle_program(token: String, config: &Config) -> R<ProgramStatus> {
 

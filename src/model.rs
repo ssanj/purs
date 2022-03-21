@@ -1,5 +1,5 @@
 use std::ffi::OsStr;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::fmt::{self, Display};
 use std::error::Error;
 use tokio::task::JoinHandle;
@@ -270,4 +270,27 @@ impl RepoBranchName {
   pub fn new(branch: String) -> Self {
     RepoBranchName(branch)
   }
+}
+
+
+#[derive(Debug)]
+pub enum ScriptType {
+  NoScript,
+  Script(PathBuf),
+  InvalidScript(String, NestedError)
+}
+
+#[derive(Debug)]
+pub struct WorkingDirectory(PathBuf);
+
+impl WorkingDirectory {
+  pub fn new(working_dir: &Path) -> Self {
+    WorkingDirectory(working_dir.to_path_buf())
+  }
+}
+
+impl Display for WorkingDirectory {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{}", self.0.to_string_lossy())
+    }
 }
