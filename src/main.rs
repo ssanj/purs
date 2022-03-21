@@ -22,6 +22,8 @@ async fn main() {
 
   const APPVERSION: &str = env!("CARGO_PKG_VERSION");
 
+  //TODO: Can we define GH_ACCESS_TOKEN through Clap as well?
+  // Does it fall back to env if it can't match on the command line?
   let app =
     App::new("purs")
     .version(APPVERSION)
@@ -71,7 +73,7 @@ async fn main() {
     println!("script option: {:?}", script_option);
 
     let working_dir = match matches.value_of("working_dir") {
-      Some(custom_working_dir) => todo!(),
+      Some(custom_working_dir) => WorkingDirectory::new(Path::new(custom_working_dir)),
       None => WorkingDirectory::new(Path::new("~/.purs"))
     };
 
