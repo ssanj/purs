@@ -46,6 +46,14 @@ async fn main() {
             .help("Optional script to run after cloning repository")
     )
     .arg(
+        Arg::new("gh_token")
+            .takes_value(true)
+            .short('t')
+            .long("token")
+            .env("GH_ACCESS_TOKEN")
+            .help("GitHub Access Token. Can also be supplied through the GH_ACCESS_TOKEN environment variable")
+    )
+    .arg(
         Arg::new("working_dir")
             .short('w')
             .long("wd")
@@ -77,7 +85,10 @@ async fn main() {
       None => WorkingDirectory::new(Path::new("~/.purs"))
     };
 
-    println!("working_dir: {}", working_dir)
+    println!("working_dir: {}", working_dir);
+
+    let token = matches.value_of("gh_token").expect("Could not find Github Personal Access Token");
+    println!("Got token")
   } else {
     todo!()
     //error <- should not be called because repos is mandatory
