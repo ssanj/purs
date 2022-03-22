@@ -22,8 +22,6 @@ async fn main() {
 
   const APPVERSION: &str = env!("CARGO_PKG_VERSION");
 
-  //TODO: Can we define GH_ACCESS_TOKEN through Clap as well?
-  // Does it fall back to env if it can't match on the command line?
   let app =
     App::new("purs")
     .version(APPVERSION)
@@ -71,7 +69,7 @@ async fn main() {
         Some(script) => {
           let script_path = PathBuf::from_str(script);
           match script_path {
-            Ok(valid_script) => ScriptType::Script(valid_script),
+            Ok(valid_script) => ScriptType::Script(ScriptToRun::new(&valid_script)),
             Err(e) => ScriptType::InvalidScript(script.to_string(), NestedError::from(e))
           }
         },
@@ -94,6 +92,7 @@ async fn main() {
     //error <- should not be called because repos is mandatory
   }
 
+  //TODO: Convert all argument values to Config
 
     // let token = std::env::var("GH_ACCESS_TOKEN").expect("Could not find Github Personal Access Token");
 
@@ -286,7 +285,7 @@ fn get_extract_path(config: &Config, pull: &PullRequest) -> R<String> {
     let separator = format!("{}", std::path::MAIN_SEPARATOR);
     let extraction_path =
       vec![
-        config.working_dir.to_string_lossy().to_string(),
+        config.working_dir.to_string(),
         repo_name,
         pull.branch_name.clone(),
         pull.head_sha.clone()

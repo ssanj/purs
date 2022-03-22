@@ -1,5 +1,5 @@
 use std::ffi::OsStr;
-use std::path::{PathBuf, Path};
+use std::path::{PathBuf, Path, self};
 use std::fmt::{self, Display};
 use std::error::Error;
 use tokio::task::JoinHandle;
@@ -89,8 +89,10 @@ impl <T: Clone> NonEmptyVec<T> {
 }
 
 pub struct Config {
-    pub working_dir: PathBuf,
+    pub working_dir: WorkingDirectory,
     pub repositories: NonEmptyVec<OwnerRepo>,
+    pub token: GitHubToken,
+    pub script: Option<ScriptToRun>
 }
 
 #[derive(Debug, Clone)]
@@ -276,8 +278,17 @@ impl RepoBranchName {
 #[derive(Debug)]
 pub enum ScriptType {
   NoScript,
-  Script(PathBuf),
+  Script(ScriptToRun),
   InvalidScript(String, NestedError)
+}
+
+#[derive(Debug)]
+pub struct ScriptToRun(PathBuf);
+
+impl ScriptToRun {
+  pub fn new(path: &Path) -> Self {
+    ScriptToRun(path.to_path_buf())
+  }
 }
 
 #[derive(Debug)]
@@ -293,4 +304,12 @@ impl Display for WorkingDirectory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
       write!(f, "{}", self.0.to_string_lossy())
     }
+}
+
+pub struct GitHubToken(String);
+
+impl GitHubToken {
+  pub fn new(token: &str) -> Self {
+    GitHubToken(token.to_string())
+  }
 }
