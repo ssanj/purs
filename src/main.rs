@@ -107,6 +107,10 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
   if let Some(repos) = matches.values_of("repo") {
     //TODO: Validate repo format
     println!("Got repos: {:?}", repos.collect::<Vec<_>>());
+
+    //TODO: Fix
+    let repositories = todo!();
+
     let script_option =
       match matches.value_of("script") {
         Some(script) => {
@@ -119,7 +123,14 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
         None => ScriptType::NoScript
       };
 
-    println!("script option: {:?}", script_option);
+    let script = match script_option {
+        ScriptType::NoScript => Ok(None),
+        ScriptType::Script(script_to_run) => Ok(Some(script_to_run)),
+        ScriptType::InvalidScript(script_supplied, e) => {
+          let error = format!("Invalid Script supplied: {}. Error:{}", script_supplied, e);
+          Err(CommandLineArgumentFailure::new(&error))
+        },
+    }?;
 
     let working_dir = match matches.value_of("working_dir") {
       Some(custom_working_dir) => WorkingDirectory::new(Path::new(custom_working_dir)),
@@ -128,9 +139,21 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
 
     println!("working_dir: {}", working_dir);
 
-    let token = matches.value_of("gh_token").expect("Could not find Github Personal Access Token");
-    println!("Got token");
-    Ok(todo!())
+    let token =
+      matches
+      .value_of("gh_token")
+      .ok_or_else(|| CommandLineArgumentFailure::new("Could not find Github Personal Access Token"))
+      .map(|t| GitHubToken::new(t))?;
+
+    let config =
+      Config {
+        working_dir,
+        repositories,
+        token,
+        script
+      };
+
+    Ok(config)
   } else {
     Err(CommandLineArgumentFailure::new("Invalid command line argument combination, expected at least one repository."))
   }
