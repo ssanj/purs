@@ -3,6 +3,7 @@ use futures::future::try_join_all;
 use octocrab::{self, OctocrabBuilder, Octocrab};
 use octocrab::params;
 use crate::model::*;
+use std::ffi::OsStr;
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -48,7 +49,8 @@ async fn main() {
             .takes_value(true)
             .short('t')
             .long("token")
-            .env("GH_ACCESS_TOKEN")
+            .env_os(OsStr::new("GH_ACCESS_TOKEN"))
+            .hide_env(true)//Don't display value of GH_ACCESS_TOKEN in help text
             .help("GitHub Access Token. Can also be supplied through the GH_ACCESS_TOKEN environment variable")
     )
     .arg(
