@@ -2,6 +2,7 @@ use std::ffi::OsStr;
 use std::path::{PathBuf, Path, self};
 use std::fmt::{self, Display};
 use std::error::Error;
+use tokio::sync::broadcast::error;
 use tokio::task::JoinHandle;
 
 pub type R<T> = Result<T, PursError>;
@@ -311,5 +312,19 @@ pub struct GitHubToken(String);
 impl GitHubToken {
   pub fn new(token: &str) -> Self {
     GitHubToken(token.to_string())
+  }
+}
+
+pub struct CommandLineArgumentFailure(String);
+
+impl Display for CommandLineArgumentFailure {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{}", self.0)
+    }
+}
+
+impl CommandLineArgumentFailure {
+  pub fn new(error: &str) -> Self {
+    CommandLineArgumentFailure(error.to_string())
   }
 }

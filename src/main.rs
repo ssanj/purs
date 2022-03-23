@@ -21,6 +21,47 @@ mod model;
 #[tokio::main]
 async fn main() {
 
+  match cli() {
+    Ok(config) => {
+      let program_result = handle_program("token".to_string(), &config).await;
+
+      match program_result {
+        Ok(ProgramStatus::UserQuit) =>  println!("Goodbye!"),
+        Ok(ProgramStatus::CompletedSuccessfully) => println!("Purs completed successfully"),
+        Err(purs_error) => println!("Purs Error: {}", purs_error)
+      }
+    },
+    Err(e) => {
+      let error = format!("Could not launch purs due to an error in command line arguments. Error: {}", e.to_string());
+      eprintln!("{}", error)
+    }
+  }
+
+  //TODO: Convert all argument values to Config
+
+    // let token = std::env::var("GH_ACCESS_TOKEN").expect("Could not find Github Personal Access Token");
+
+    // //TODO: Retrieve from Config
+    // let repo1 = OwnerRepo(Owner("disneystreaming".to_string()), Repo("weaver-test".to_string()));
+    // let repo2 = OwnerRepo(Owner("scalatest".to_string()), Repo("scalatest".to_string()));
+
+    // let config =
+    //     Config {
+    //         working_dir: Path::new("/Users/sanj/ziptemp/prs").to_path_buf(),
+    //         repositories: NonEmptyVec::new(repo1, vec![repo2])
+    //     };
+
+    // let program_result = handle_program(token, &config).await;
+
+    // match program_result {
+    //   Ok(ProgramStatus::UserQuit) =>  println!("Goodbye!"),
+    //   Ok(ProgramStatus::CompletedSuccessfully) => println!("Purs completed successfully"),
+    //   Err(purs_error) => println!("Purs Error: {}", purs_error)
+    // }
+}
+
+fn cli() -> Result<Config, CommandLineArgumentFailure> {
+
   const APPVERSION: &str = env!("CARGO_PKG_VERSION");
 
   let app =
@@ -88,36 +129,12 @@ async fn main() {
     println!("working_dir: {}", working_dir);
 
     let token = matches.value_of("gh_token").expect("Could not find Github Personal Access Token");
-    println!("Got token")
+    println!("Got token");
+    Ok(todo!())
   } else {
-    todo!()
-    //error <- should not be called because repos is mandatory
+    Err(CommandLineArgumentFailure::new("Invalid command line argument combination, expected at least one repository."))
   }
-
-  //TODO: Convert all argument values to Config
-
-    // let token = std::env::var("GH_ACCESS_TOKEN").expect("Could not find Github Personal Access Token");
-
-    // //TODO: Retrieve from Config
-    // let repo1 = OwnerRepo(Owner("disneystreaming".to_string()), Repo("weaver-test".to_string()));
-    // let repo2 = OwnerRepo(Owner("scalatest".to_string()), Repo("scalatest".to_string()));
-
-    // let config =
-    //     Config {
-    //         working_dir: Path::new("/Users/sanj/ziptemp/prs").to_path_buf(),
-    //         repositories: NonEmptyVec::new(repo1, vec![repo2])
-    //     };
-
-    // let program_result = handle_program(token, &config).await;
-
-    // match program_result {
-    //   Ok(ProgramStatus::UserQuit) =>  println!("Goodbye!"),
-    //   Ok(ProgramStatus::CompletedSuccessfully) => println!("Purs completed successfully"),
-    //   Err(purs_error) => println!("Purs Error: {}", purs_error)
-    // }
 }
-
-
 
 async fn handle_program(token: String, config: &Config) -> R<ProgramStatus> {
 
