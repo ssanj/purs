@@ -23,7 +23,7 @@ async fn main() {
 
   match cli() {
     Ok(config) => {
-      let program_result = handle_program("token".to_string(), &config).await;
+      let program_result = handle_program( &config).await;
 
       match program_result {
         Ok(ProgramStatus::UserQuit) =>  println!("Goodbye!"),
@@ -36,28 +36,6 @@ async fn main() {
       eprintln!("{}", error)
     }
   }
-
-  //TODO: Convert all argument values to Config
-
-    // let token = std::env::var("GH_ACCESS_TOKEN").expect("Could not find Github Personal Access Token");
-
-    // //TODO: Retrieve from Config
-    // let repo1 = OwnerRepo(Owner("disneystreaming".to_string()), Repo("weaver-test".to_string()));
-    // let repo2 = OwnerRepo(Owner("scalatest".to_string()), Repo("scalatest".to_string()));
-
-    // let config =
-    //     Config {
-    //         working_dir: Path::new("/Users/sanj/ziptemp/prs").to_path_buf(),
-    //         repositories: NonEmptyVec::new(repo1, vec![repo2])
-    //     };
-
-    // let program_result = handle_program(token, &config).await;
-
-    // match program_result {
-    //   Ok(ProgramStatus::UserQuit) =>  println!("Goodbye!"),
-    //   Ok(ProgramStatus::CompletedSuccessfully) => println!("Purs completed successfully"),
-    //   Err(purs_error) => println!("Purs Error: {}", purs_error)
-    // }
 }
 
 fn cli() -> Result<Config, CommandLineArgumentFailure> {
@@ -105,11 +83,23 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
   let matches = app.get_matches();
 
   if let Some(repos) = matches.values_of("repo") {
-    //TODO: Validate repo format
-    println!("Got repos: {:?}", repos.collect::<Vec<_>>());
-
     //TODO: Fix
-    let repositories = todo!();
+    let repositories_result = repos.map(|r| {
+      let mut rit = r.split('/').take(2);
+      let invalid_format_error = format!("Invalid repository format: {}", r);
+      let error = CommandLineArgumentFailure::new(&invalid_format_error);
+      let owner = rit.next().ok_or_else(|| error.clone())?;
+      let repo = rit.next().ok_or_else(|| error)?;
+
+      Ok(OwnerRepo(Owner(owner.to_owned()), Repo(repo.to_owned())))
+    }).collect::<Result<Vec<_>, CommandLineArgumentFailure>>();
+
+    let repositories_vec = repositories_result?;
+    let no_repositories_supplied_error = "No repositories supplied";
+    let repositories =
+      NonEmptyVec::from_vec(repositories_vec)
+      .ok_or_else(|| CommandLineArgumentFailure::new(no_repositories_supplied_error))?;
+
 
     let script_option =
       match matches.value_of("script") {
@@ -137,7 +127,8 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
       None => WorkingDirectory::new(Path::new("~/.purs"))
     };
 
-    println!("working_dir: {}", working_dir);
+    //TODO: We should working_dir if they doesn't exist at this point
+    // or fail fast if we can't do it.
 
     let token =
       matches
@@ -159,12 +150,14 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
   }
 }
 
-async fn handle_program(token: String, config: &Config) -> R<ProgramStatus> {
+async fn handle_program(config: &Config) -> R<ProgramStatus> {
+
+    println!("======> Config: {:?}", config);
 
     //TODO: Move to another function
     let octocrab =
         OctocrabBuilder::new()
-        .personal_token(token.to_owned())
+        .personal_token(config.token.to_string())
         .build()
         .map_err(PursError::from)?;
 
@@ -577,8 +570,6 @@ async fn flatten<T>(handle: tokio::task::JoinHandle<R<T>>) -> R<T> {
     }
 }
 
-
-//TODO: Return Result with an error if the diff can't be parsed.
 fn parse_diffs(diff: &str) -> R<PullRequestDiff> {
   let mut patch = PatchSet::new();
   let parse_result = patch.parse(diff).map_err(PursError::from);

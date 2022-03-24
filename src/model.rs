@@ -47,15 +47,16 @@ pub enum ExitCode {
     Terminated
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Owner(pub String);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Repo(pub String);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct OwnerRepo(pub Owner, pub Repo);
 
+#[derive(Clone, Debug)]
 pub struct NonEmptyVec<T> {
     first: T,
     rest: Vec<T>,
@@ -87,8 +88,23 @@ impl <T: Clone> NonEmptyVec<T> {
         v.append(&mut self.rest.clone());
         v
     }
+
+    pub fn from_vec(other: Vec<T>) -> Option<Self> {
+      match &other[..] {
+        [h, t @ ..] => {
+          Some(
+            NonEmptyVec {
+              first: h.clone(),
+              rest: t.to_vec()
+            }
+          )
+        },
+        _ => None
+      }
+    }
 }
 
+#[derive(Debug)]
 pub struct Config {
     pub working_dir: WorkingDirectory,
     pub repositories: NonEmptyVec<OwnerRepo>,
@@ -307,6 +323,7 @@ impl Display for WorkingDirectory {
     }
 }
 
+#[derive(Debug)]
 pub struct GitHubToken(String);
 
 impl GitHubToken {
@@ -315,6 +332,13 @@ impl GitHubToken {
   }
 }
 
+impl Display for GitHubToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Clone)]
 pub struct CommandLineArgumentFailure(String);
 
 impl Display for CommandLineArgumentFailure {
