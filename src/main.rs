@@ -14,7 +14,7 @@ extern crate unidiff;
 use unidiff::PatchSet;
 use std::time::Instant;
 use futures::stream::{self, StreamExt};
-use clap::{self};
+use clap;
 
 mod model;
 
