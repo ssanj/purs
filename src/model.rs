@@ -1,8 +1,7 @@
 use std::ffi::OsStr;
-use std::path::{PathBuf, Path, self};
+use std::path::{PathBuf, Path};
 use std::fmt::{self, Display};
 use std::error::Error;
-use tokio::sync::broadcast::error;
 use tokio::task::JoinHandle;
 
 pub type R<T> = Result<T, PursError>;
@@ -71,6 +70,7 @@ impl <T: Clone> NonEmptyVec<T> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn new(first: T, rest: Vec<T>) -> NonEmptyVec<T> {
         NonEmptyVec {
             first,

@@ -14,7 +14,7 @@ extern crate unidiff;
 use unidiff::PatchSet;
 use std::time::Instant;
 use futures::stream::{self, StreamExt};
-use clap::{App, Arg};
+use clap::{self};
 
 mod model;
 
@@ -43,12 +43,12 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
   const APPVERSION: &str = env!("CARGO_PKG_VERSION");
 
   let app =
-    App::new("purs")
+    clap::Command::new("purs")
     .version(APPVERSION)
     .author("Sanj Sahayam")
     .about("List and checkout open Pull Requests on a GitHub repository")
     .arg(
-        Arg::new("repo")
+        clap::Arg::new("repo")
             .short('r')
             .long("repo")
             .multiple_occurrences(true)
@@ -57,14 +57,14 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
             .help("one or more GitHub repositories to include in the form: <owner>/<repo>"),
     )
     .arg(
-        Arg::new("script")
+        clap::Arg::new("script")
             .short('s')
             .long("script")
             .takes_value(true)
             .help("Optional script to run after cloning repository")
     )
     .arg(
-        Arg::new("gh_token")
+        clap::Arg::new("gh_token")
             .takes_value(true)
             .short('t')
             .long("token")
@@ -73,7 +73,7 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
             .help("GitHub Access Token. Can also be supplied through the GH_ACCESS_TOKEN environment variable")
     )
     .arg(
-        Arg::new("working_dir")
+        clap::Arg::new("working_dir")
             .short('w')
             .long("wd")
             .takes_value(true)
