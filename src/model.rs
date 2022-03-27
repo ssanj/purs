@@ -7,6 +7,7 @@ use tokio::task::JoinHandle;
 pub type R<T> = Result<T, PursError>;
 
 pub const DEFAULT_WORKING_DIR: &str = ".purs";
+pub const DIFF_FILE_LIST: &str = "diff_file_list.txt";
 
 #[derive(Debug, Clone)]
 pub struct PullRequest {
@@ -160,6 +161,21 @@ impl Display for NestedError {
     }
 }
 
+#[derive(Debug)]
+pub enum ScriptErrorType {
+  NonZeroResult(String),
+  Error(NestedError)
+}
+
+impl Display for ScriptErrorType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      match self {
+        ScriptErrorType::NonZeroResult(error) => write!(f, "ScriptErrorType.NonZeroResult: {}", error),
+        ScriptErrorType::Error(error) => write!(f, "ScriptErrorType.Error: {}", error),
+      }
+    }
+}
+
 
 #[derive(Debug)]
 pub enum PursError {
@@ -171,7 +187,8 @@ pub enum PursError {
     DiffParseError(NestedError),
     ProcessError(NestedError), // Maybe add more information about which process was being executed?
     MultipleErrors(Vec<PursError>),
-    UserError(UserInputError)
+    UserError(UserInputError),
+    ScriptExecutionError(ScriptErrorType)
 }
 
 impl Display for PursError {
@@ -186,6 +203,7 @@ impl Display for PursError {
             PursError::MultipleErrors(errors) => write!(f, "PursError.MultipleErrors: {:?}", errors),
             PursError::DiffParseError(error) => write!(f, "PursError.DiffParseError: {}", error),
             PursError::UserError(error) => write!(f, "PursError.UserError: {}", error),
+            PursError::ScriptExecutionError(error) => write!(f, "PursError.ScriptExecutionError: {}", error),
         }
     }
 }
@@ -308,6 +326,12 @@ impl ScriptToRun {
   pub fn new(path: &Path) -> Self {
     ScriptToRun(path.to_path_buf())
   }
+}
+
+impl Display for ScriptToRun {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{}", self.0.to_string_lossy())
+    }
 }
 
 #[derive(Debug)]

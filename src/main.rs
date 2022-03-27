@@ -87,7 +87,7 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
   let matches = app.get_matches();
 
   if let Some(repos) = matches.values_of("repo") {
-    //TODO: Fix
+
     let repositories_result = repos.map(|r| {
       let mut rit = r.split('/').take(2);
       let invalid_format_error = format!("Invalid repository format: {}", r);
@@ -198,11 +198,37 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
         clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
         write_diff_files(checkout_path.as_ref(), &pr.diffs)?;
 
+        if let Some(script) = &config.script {
+          script_to_run(script, &checkout_path)?
+        }
+
         Ok(ProgramStatus::CompletedSuccessfully)
       }
     }
 }
 
+fn script_to_run(script: &ScriptToRun, checkout_path: &RepoCheckoutPath) -> R<()> {
+   let mut command = Command::new(script.to_string());
+   command
+    .arg(checkout_path.to_string()) //arg1 -> checkout dir
+    .arg(format!("{}", DIFF_FILE_LIST)); //arg2 -> diff file list
+
+   match command.status() {
+    Ok(exit_status) => {
+      if exit_status.success() {
+        Ok(())
+      } else {
+        Err(
+          PursError::ScriptExecutionError(ScriptErrorType::NonZeroResult(exit_status.to_string()))
+        )
+      }
+    },
+    Err(error) =>
+      Err(
+          PursError::ScriptExecutionError(ScriptErrorType::Error(NestedError::from(error)))
+      )
+  }
+}
 
 fn handle_user_selection(selection_size: usize, selection_options: &[PullRequest]) -> R<ValidSelection> {
   match read_user_response("Please select a PR to clone to 'q' to exit", selection_size) {
@@ -285,7 +311,7 @@ fn clone_branch(ssh_url: GitRepoSshUrl, checkout_path: RepoCheckoutPath, branch_
 // TODO: Do we want the diff file to be configurable?
 fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
   println!("Generating diff files...");
-  let file_list_path = Path::new(checkout_path).join("diff_file_list.txt");
+  let file_list_path = Path::new(checkout_path).join(format!("{}", DIFF_FILE_LIST));
   // TODO: Do we want to wrap this error?
   let mut file_list = File::create(&file_list_path) .unwrap();
 
