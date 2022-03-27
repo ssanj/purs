@@ -3,6 +3,7 @@ use futures::future::try_join_all;
 use octocrab::{self, OctocrabBuilder, Octocrab};
 use octocrab::params;
 use crate::model::*;
+use crate::user_dir::*;
 use std::ffi::OsStr;
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
@@ -17,6 +18,7 @@ use futures::stream::{self, StreamExt};
 use clap;
 
 mod model;
+mod user_dir;
 
 #[tokio::main]
 async fn main() {
@@ -41,6 +43,8 @@ async fn main() {
 fn cli() -> Result<Config, CommandLineArgumentFailure> {
 
   const APPVERSION: &str = env!("CARGO_PKG_VERSION");
+
+  let working_dir_help_text = format!("Optional working directory. Defaults to USER_HOME/{}", DEFAULT_WORKING_DIR);
 
   let app =
     clap::Command::new("purs")
@@ -77,7 +81,7 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
             .short('w')
             .long("wd")
             .takes_value(true)
-            .help("Optional working directory. Defaults to ~/.purs")
+            .help(working_dir_help_text.as_str())
     );
 
   let matches = app.get_matches();
@@ -124,11 +128,17 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
 
     let working_dir = match matches.value_of("working_dir") {
       Some(custom_working_dir) => WorkingDirectory::new(Path::new(custom_working_dir)),
-      None => WorkingDirectory::new(Path::new("~/.purs"))
+      None => {
+        let home_dir = get_home_dir()?;
+        let working_dir = home_dir.join(format!("{}", DEFAULT_WORKING_DIR).as_str());
+        WorkingDirectory::new(&working_dir)
+      }
     };
 
-    //TODO: We should working_dir if they doesn't exist at this point
-    // or fail fast if we can't do it.
+    match get_or_create_working_dir(&working_dir)? {
+      WorkingDirectoryStatus::Exists => {},
+      WorkingDirectoryStatus::Created => println!("created working directory: {}", working_dir),
+    }
 
     let token =
       matches
@@ -151,9 +161,6 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
 }
 
 async fn handle_program(config: &Config) -> R<ProgramStatus> {
-
-    println!("======> Config: {:?}", config);
-
     //TODO: Move to another function
     let octocrab =
         OctocrabBuilder::new()

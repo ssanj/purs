@@ -6,6 +6,8 @@ use tokio::task::JoinHandle;
 
 pub type R<T> = Result<T, PursError>;
 
+pub const DEFAULT_WORKING_DIR: &str = ".purs";
+
 #[derive(Debug, Clone)]
 pub struct PullRequest {
     pub title : String,
@@ -324,6 +326,25 @@ impl Display for WorkingDirectory {
 }
 
 #[derive(Debug)]
+pub struct HomeDirectory(PathBuf);
+
+impl HomeDirectory {
+  pub fn new(home_dir: &Path) -> Self {
+    HomeDirectory(home_dir.to_path_buf())
+  }
+
+  pub fn join(&self, arg: &str) -> PathBuf {
+    self.0.join(arg)
+  }
+}
+
+impl Display for HomeDirectory {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{}", self.0.to_string_lossy())
+    }
+}
+
+#[derive(Debug)]
 pub struct GitHubToken(String);
 
 impl GitHubToken {
@@ -351,4 +372,10 @@ impl CommandLineArgumentFailure {
   pub fn new(error: &str) -> Self {
     CommandLineArgumentFailure(error.to_string())
   }
+}
+
+#[derive(Debug)]
+pub enum WorkingDirectoryStatus {
+  Exists,
+  Created
 }
