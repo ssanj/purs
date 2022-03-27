@@ -3,18 +3,14 @@
 
 ## Features
 
-- [ ] Externalise repo names
 - [ ] Externalise commands to run on completion
 - [ ] Add more info about the PRs
   - [ ] Number of Approvals
   - [ ] Number of Reviewers
   - [ ] Number of Comments
 - Write each run command
-- Add clap for cli arguments
-- Read config from file?
-- Handle multiple repos concurrently
+- Only show info on reviews and comments if they exist. That makes it easier to find.
+- Tabulate the output
+- Move PRs without source branches to another list. These can't be checked out.
 
 ## Design
-
-- [ ] Decide on how to handle errors
-- [ ] Use tokio to run multiple requests for each pr concurrently
