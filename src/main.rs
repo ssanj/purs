@@ -326,7 +326,7 @@ fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
   let mut file_list = File::create(&file_list_path) .unwrap();
 
   diffs.0.iter().for_each(|d| {
-      writeln!(file_list, "{}", d.file_name).unwrap(); // TODO: Do we want to wrap this error?
+      writeln!(file_list, "{}.diff", d.file_name).unwrap(); // TODO: Do we want to wrap this error?
 
       let diff_file_name = format!("{}.diff", d.file_name);
       let diff_file = Path::new(checkout_path).join(&diff_file_name);
