@@ -46,6 +46,15 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
 
   let working_dir_help_text = format!("Optional working directory. Defaults to USER_HOME/{}", DEFAULT_WORKING_DIR);
 
+  let script_help: &str =
+    "Optional script to run after cloning repository\n\
+     Parameters to script:\n\
+     param1: checkout directory for the selected PR\n\
+     param2: name of the file that has the names of all the changed files\n\
+     \n\
+     Eg. purs --repo owner/repo --script path/to/your/script
+    ";
+
   let app =
     clap::Command::new("purs")
     .version(APPVERSION)
@@ -65,7 +74,8 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
             .short('s')
             .long("script")
             .takes_value(true)
-            .help("Optional script to run after cloning repository")
+            .next_line_help(true)
+            .help(script_help)
     )
     .arg(
         clap::Arg::new("gh_token")
