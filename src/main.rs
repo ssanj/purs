@@ -15,7 +15,6 @@ extern crate unidiff;
 use unidiff::PatchSet;
 use std::time::Instant;
 use futures::stream::{self, StreamExt};
-use clap;
 
 mod model;
 mod user_dir;
@@ -103,7 +102,7 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
       let invalid_format_error = format!("Invalid repository format: {}", r);
       let error = CommandLineArgumentFailure::new(&invalid_format_error);
       let owner = rit.next().ok_or_else(|| error.clone())?;
-      let repo = rit.next().ok_or_else(|| error)?;
+      let repo = rit.next().ok_or( error)?;
 
       Ok(OwnerRepo(Owner(owner.to_owned()), Repo(repo.to_owned())))
     }).collect::<Result<Vec<_>, CommandLineArgumentFailure>>();
@@ -140,7 +139,7 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
       Some(custom_working_dir) => WorkingDirectory::new(Path::new(custom_working_dir)),
       None => {
         let home_dir = get_home_dir()?;
-        let working_dir = home_dir.join(format!("{}", DEFAULT_WORKING_DIR).as_str());
+        let working_dir = home_dir.join(DEFAULT_WORKING_DIR);
         WorkingDirectory::new(&working_dir)
       }
     };
@@ -153,8 +152,8 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
     let token =
       matches
       .value_of("gh_token")
-      .ok_or_else(|| CommandLineArgumentFailure::new("Could not find Github Personal Access Token"))
-      .map(|t| GitHubToken::new(t))?;
+      .ok_or_else( || CommandLineArgumentFailure::new("Could not find Github Personal Access Token"))
+      .map(GitHubToken::new)?;
 
     let config =
       Config {
@@ -221,7 +220,7 @@ fn script_to_run(script: &ScriptToRun, checkout_path: &RepoCheckoutPath) -> R<()
    let mut command = Command::new(script.to_string());
    command
     .arg(checkout_path.to_string()) //arg1 -> checkout dir
-    .arg(format!("{}", DIFF_FILE_LIST)); //arg2 -> diff file list
+    .arg(DIFF_FILE_LIST); //arg2 -> diff file list
 
    match command.status() {
     Ok(exit_status) => {
@@ -321,7 +320,7 @@ fn clone_branch(ssh_url: GitRepoSshUrl, checkout_path: RepoCheckoutPath, branch_
 // TODO: Do we want the diff file to be configurable?
 fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
   println!("Generating diff files...");
-  let file_list_path = Path::new(checkout_path).join(format!("{}", DIFF_FILE_LIST));
+  let file_list_path = Path::new(checkout_path).join(DIFF_FILE_LIST);
   // TODO: Do we want to wrap this error?
   let mut file_list = File::create(&file_list_path) .unwrap();
 

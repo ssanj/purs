@@ -7,7 +7,7 @@ pub fn get_home_dir() -> Result<HomeDirectory, CommandLineArgumentFailure> {
     let error = CommandLineArgumentFailure::new(error_message);
     home_dir()
       .map(|hr| HomeDirectory::new(hr.as_ref()))
-      .ok_or_else(|| error)
+      .ok_or(error)
 }
 
 pub fn get_or_create_working_dir(working_dir: &WorkingDirectory) -> Result<WorkingDirectoryStatus, CommandLineArgumentFailure> {
