@@ -178,7 +178,15 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
         .map_err(PursError::from)?;
 
     let pr_start = Instant::now();
-    let pull_requests = get_prs3(config, octocrab).await?;
+    let pull_requests_raw: Vec<PullRequest> = get_prs3(config, octocrab).await?;
+
+    // Remove any invalid PRs without a clonable url    let pull_requests =
+    let pull_requests=
+      pull_requests_raw
+      .into_iter()
+      .filter(|pr| pr.ssh_url.is_some())
+      .collect::<Vec<_>>();
+
     let time_taken = pr_start.elapsed().as_millis();
 
     println!("GH API calls took {} ms", time_taken);
@@ -450,7 +458,7 @@ async fn get_pulls(octocrab: Octocrab, owner_repo: OwnerRepo) -> R<octocrab::Pag
 //TODO: Can we break this up into multiple functions?
 async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
 
-    let page_handles =
+    let page_handles: Vec<tokio::task::JoinHandle<Result<(octocrab::Page<octocrab::models::pulls::PullRequest>, OwnerRepo), PursError>>> =
       config
       .repositories
       .to_vec()
@@ -484,6 +492,7 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
                 let diffs_handle = tokio::spawn(get_pr_diffs2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
 
                 AsyncPullRequestParts {
+                    owner_repo: OwnerRepo(owner.clone(), repo.clone()),
                     pull: pull.clone(),
                     review_count_handle,
                     comment_count_handle,
@@ -496,7 +505,7 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
     let parts_stream = stream::iter(parts);
 
     let pr_stream =
-        parts_stream.then(|AsyncPullRequestParts { pull, review_count_handle, comment_count_handle, diffs_handle }|{
+        parts_stream.then(|AsyncPullRequestParts { owner_repo, pull, review_count_handle, comment_count_handle, diffs_handle }|{
             async move {
                 let res = tokio::try_join!(
                     flatten(review_count_handle),
@@ -514,9 +523,11 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
                     let repo_name = pull.head.repo.clone().and_then(|r| r.full_name);
                     let branch_name = pull.head.ref_field;
                     let base_sha = pull.base.sha;
+                    let config_owner_repo = owner_repo;
 
                     let pr =
                       PullRequest {
+                        config_owner_repo,
                         title,
                         pr_number: pr_no,
                         ssh_url,

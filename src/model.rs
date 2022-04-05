@@ -11,6 +11,7 @@ pub const DIFF_FILE_LIST: &str = "diff_file_list.txt";
 
 #[derive(Debug, Clone)]
 pub struct PullRequest {
+    pub config_owner_repo: OwnerRepo,
     pub title : String,
     pub pr_number : u64,
     pub ssh_url: Option<String>,
@@ -28,9 +29,11 @@ pub struct PullRequestDiff(pub Vec<GitDiff>);
 
 impl fmt::Display for PullRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.review_count, self.comment_count, if self.ssh_url.is_none()  { "x" } else { "v" })
+        let repo_name = &self.config_owner_repo.1.0;
+        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.review_count, self.comment_count, repo_name)
     }
 }
+
 
 #[derive(Debug)]
 pub enum UserSelection {
@@ -123,6 +126,7 @@ pub struct GitDiff {
 
 
 pub struct AsyncPullRequestParts {
+    pub owner_repo: OwnerRepo,
     pub pull: octocrab::models::pulls::PullRequest,
     pub review_count_handle: JoinHandle<R<usize>>,
     pub comment_count_handle: JoinHandle<R<usize>>,

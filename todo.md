@@ -3,7 +3,6 @@
 
 ## Features
 
-- [ ] Externalise commands to run on completion
 - [ ] Add more info about the PRs
   - [ ] Number of Approvals
   - [ ] Number of Reviewers
