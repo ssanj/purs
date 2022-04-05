@@ -25,6 +25,29 @@ pub struct PullRequest {
 }
 
 #[derive(Debug, Clone)]
+pub struct ValidatedPullRequest {
+    pub config_owner_repo: OwnerRepo,
+    pub title : String,
+    pub pr_number : u64,
+    pub ssh_url: GitRepoSshUrl,
+    pub repo_name: Repo,
+    pub branch_name: RepoBranchName,
+    pub head_sha: String,
+    pub base_sha: String,
+    pub review_count: usize,
+    pub comment_count: usize,
+    pub diffs: PullRequestDiff
+}
+
+impl fmt::Display for ValidatedPullRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let repo_name = &self.config_owner_repo.1.0;
+        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.review_count, self.comment_count, repo_name)
+    }
+}
+
+
+#[derive(Debug, Clone)]
 pub struct PullRequestDiff(pub Vec<GitDiff>);
 
 impl fmt::Display for PullRequest {
@@ -55,8 +78,20 @@ pub enum ExitCode {
 #[derive(Clone, Debug)]
 pub struct Owner(pub String);
 
+impl Display for Owner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Repo(pub String);
+
+impl Display for Repo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct OwnerRepo(pub Owner, pub Repo);
@@ -186,8 +221,6 @@ pub enum PursError {
     Octocrab(NestedError),
     JoinError(NestedError),
     GitError(String),
-    PullRequestHasNoRepo(String),
-    PullRequestHasNoSSHUrl(String),
     DiffParseError(NestedError),
     ProcessError(NestedError), // Maybe add more information about which process was being executed?
     MultipleErrors(Vec<PursError>),
@@ -201,8 +234,6 @@ impl Display for PursError {
             PursError::Octocrab(error) => write!(f, "PursError.Octocrab: {}", error),
             PursError::JoinError(error) => write!(f, "PursError.JoinError: {}", error),
             PursError::GitError(error) => write!(f, "PursError.GitError: {}", error),
-            PursError::PullRequestHasNoRepo(error) => write!(f, "PursError.PullRequestHasNoRepo: {}", error),
-            PursError::PullRequestHasNoSSHUrl(error) => write!(f, "PursError.PullRequestHasNoSSHUrl: {}", error),
             PursError::ProcessError(error) => write!(f, "PursError.ProcessError: {}", error),
             PursError::MultipleErrors(errors) => write!(f, "PursError.MultipleErrors: {:?}", errors),
             PursError::DiffParseError(error) => write!(f, "PursError.DiffParseError: {}", error),
@@ -247,10 +278,10 @@ pub enum ProgramStatus {
 
 pub enum ValidSelection {
   Quit,
-  Pr(PullRequest)
+  Pr(ValidatedPullRequest)
 }
 
-#[derive(Clone)]
+#[derive(Debug,Clone)]
 pub struct GitRepoSshUrl(String);
 
 impl AsRef<OsStr> for GitRepoSshUrl {
@@ -293,7 +324,7 @@ impl AsRef<str> for RepoCheckoutPath {
   }
 }
 
-#[derive(Clone)]
+#[derive(Debug,Clone)]
 pub struct RepoBranchName(String);
 
 

@@ -184,7 +184,29 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
     let pull_requests=
       pull_requests_raw
       .into_iter()
-      .filter(|pr| pr.ssh_url.is_some())
+      .filter_map(|pr| {
+        match (pr.ssh_url, pr.repo_name) {
+          (Some(ssh_url), Some(repo_name)) => {
+            Some(
+              ValidatedPullRequest {
+                config_owner_repo: pr.config_owner_repo,
+                title : pr.title,
+                pr_number : pr.pr_number,
+                ssh_url: GitRepoSshUrl::new(ssh_url),
+                repo_name: Repo(repo_name),
+                branch_name: RepoBranchName::new(pr.branch_name),
+                head_sha: pr.head_sha,
+                base_sha: pr.base_sha,
+                review_count: pr.review_count,
+                comment_count: pr.comment_count,
+                diffs: pr.diffs
+              }
+            )
+          },
+          _ => None // Filter out PRs that don't have an ssh url or repo name
+        }
+
+      })
       .collect::<Vec<_>>();
 
     let time_taken = pr_start.elapsed().as_millis();
@@ -202,15 +224,9 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
     match valid_selection {
       ValidSelection::Quit => Ok(ProgramStatus::UserQuit),
       ValidSelection::Pr(pr) => {
-        let ssh_url =
-          GitRepoSshUrl::new(
-        pr
-              .ssh_url
-              .clone()
-              .ok_or_else(|| PursError::PullRequestHasNoSSHUrl(format!("Pull request #{} as no SSH Url specified", &pr.pr_number)))?
-          );
+        let ssh_url = pr.ssh_url.clone();
         let checkout_path = RepoCheckoutPath::new(get_extract_path(config, &pr)?);
-        let branch_name = RepoBranchName::new(pr.branch_name.clone());
+        let branch_name = pr.branch_name;
 
         clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
         write_diff_files(checkout_path.as_ref(), &pr.diffs)?;
@@ -247,7 +263,7 @@ fn script_to_run(script: &ScriptToRun, checkout_path: &RepoCheckoutPath) -> R<()
   }
 }
 
-fn handle_user_selection(selection_size: usize, selection_options: &[PullRequest]) -> R<ValidSelection> {
+fn handle_user_selection(selection_size: usize, selection_options: &[ValidatedPullRequest]) -> R<ValidSelection> {
   match read_user_response("Please select a PR to clone to 'q' to exit", selection_size) {
     Ok(response) => {
         match response {
@@ -365,14 +381,15 @@ fn get_process_output(command: &mut Command) -> R<CmdOutput> {
 
 }
 
-fn get_extract_path(config: &Config, pull: &PullRequest) -> R<String> {
-    let repo_name = pull.repo_name.clone().ok_or_else(|| PursError::PullRequestHasNoRepo(format!("Pull request #{} as no repo specified", pull.pr_number)))?;
+fn get_extract_path(config: &Config, pull: &ValidatedPullRequest) -> R<String> {
+    let repo_name = pull.repo_name.clone();
+    let branch_name = pull.branch_name.clone();
     let separator = format!("{}", std::path::MAIN_SEPARATOR);
     let extraction_path =
       vec![
         config.working_dir.to_string(),
-        repo_name,
-        pull.branch_name.clone(),
+        repo_name.to_string(),
+        branch_name.to_string(),
         pull.head_sha.clone()
       ].join(&separator);
 
