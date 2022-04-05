@@ -379,67 +379,7 @@ fn get_extract_path(config: &Config, pull: &PullRequest) -> R<String> {
     Ok(extraction_path)
 }
 
-// async fn get_prs2(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
 
-//     //Use only the first for now.
-
-//     let OwnerRepo(owner, repo) = config.repositories.head();
-//     let page = octocrab
-//     .pulls(owner.0.to_owned(), repo.0.to_owned())
-//     .list()
-//     // Optional Parameters
-//     .state(params::State::Open)
-//     .sort(params::pulls::Sort::Created)
-//     .direction(params::Direction::Descending)
-//     .per_page(20)
-//     .send()
-//     .await?;
-
-//     let mut results = vec![];
-//     for pull in page {
-//         let title = pull.title.clone().unwrap_or("-".to_string());
-//         let pr_no = pull.number;
-//         // let diff_url = pull.diff_url.clone().map(|u| u.to_string()).unwrap_or("-".to_string());
-//         let ssh_url = pull.head.repo.clone().and_then(|r| (r.ssh_url));
-//         let head_sha = pull.head.sha;
-//         let repo_name = pull.head.repo.clone().and_then(|r| r.full_name);
-//         let branch_name = pull.head.ref_field;
-//         let base_sha = pull.base.sha;
-
-//         let review_count_handle = tokio::spawn(get_reviews2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
-//         let comment_count_handle = tokio::spawn(get_comments2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
-//         let diffs_handle = tokio::spawn(get_pr_diffs2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
-
-//         let res = tokio::try_join!(
-//             flatten(review_count_handle),
-//             flatten(comment_count_handle),
-//             flatten(diffs_handle)
-//         );
-
-
-//         match res  {
-//             Ok((review_count, comment_count, diffs)) => {
-//                 results.push(
-//                     PullRequest {
-//                         title,
-//                         pr_number: pr_no,
-//                         ssh_url,
-//                         branch_name,
-//                         head_sha,
-//                         repo_name,
-//                         base_sha,
-//                         review_count,
-//                         comment_count,
-//                         diffs
-//                     }
-//                 );
-//             },
-//             Err(e) => println!("Could not retrieve PR: {}/{} #{}, cause: {}", owner.0.to_owned(), repo.0.to_owned(), pr_no, e)
-//         }
-//     }
-
-//     Ok(results)
-// }
 
 async fn get_pulls(octocrab: Octocrab, owner_repo: OwnerRepo) -> R<octocrab::Page<octocrab::models::pulls::PullRequest>> {
     let OwnerRepo(owner, repo) = owner_repo;
@@ -681,16 +621,6 @@ async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u6
     Ok(reviews.into_iter().count())
 }
 
-// async fn get_comments(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64) -> octocrab::Result<usize> {
-//     let comments =
-//         octocrab
-//         .pulls(owner.0.to_owned(), repo.0.to_owned())
-//         .list_comments(Some(pr_no))
-//         .send()
-//         .await?;
-
-//     Ok(comments.into_iter().count())
-// }
 
 async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64) -> R<usize> {
     let comments =
@@ -703,15 +633,6 @@ async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64)
     Ok(comments.into_iter().count())
 }
 
-// async fn get_pr_diffs(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64) -> octocrab::Result<PullRequestDiff> {
-//     let diff_string =
-//         octocrab
-//         .pulls(owner.0.to_owned(), repo.0.to_owned())
-//         .get_diff(pr_no)
-//         .await?;
-
-//     Ok(parse_diffs(&diff_string))
-// }
 
 async fn get_pr_diffs2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64) -> R<PullRequestDiff> {
     let diff_string =
@@ -767,70 +688,3 @@ pub fn print_info(message: String) {
   let coloured_info = Colour::Green.paint(message);
   println!("{}", coloured_info)
 }
-
-// fn write_file_out<P>(filename: P, working_dir: &str, pull: &PullRequest) -> io::Result<()>
-// where P: AsRef<Path> + Copy {
-//     let lines = read_lines(filename).expect(&format!("Could not read lines from {}", filename.as_ref().to_string_lossy()));
-
-//     let mut files_to_open = vec![];
-//     for line_r in lines {
-//         let file = line_r.expect("Could not read line");
-//         let path = Path::new(working_dir).join(format!("{}.diff", file));
-//         let diff_file = File::create(&path).expect(&format!("Could not create file: {}", path.as_path().to_string_lossy()));
-
-//         let mut diff_command = Command::new("git");
-//         diff_command
-//          .current_dir(working_dir)
-//          .stdout(diff_file)
-//          .arg("diff")
-//          .arg(format!("{}..{}", &pull.base_sha, &pull.head_sha))
-//          .arg("--")
-//          .arg(&file);
-
-//          diff_command.status().expect(&format!("Could not write out file: {}", path.as_path().to_string_lossy()));
-//          files_to_open.push(path);
-//     }
-
-//     let mut sublime_command = Command::new("s");
-//     sublime_command
-//     .arg(working_dir)
-//     .arg("-n");
-
-//     files_to_open.iter().for_each(|f| {
-//         sublime_command.arg(f);
-//     });
-
-
-//     sublime_command.status().expect("Could not launch Sublime Text");
-//     Ok(())
-// }
-
-// TODO: Have an external script specified, which is given the working directory of the checkout.
-// With that and the contents of the diff_files.txt file it should be able to figure out
-// Anything it needs.
-// fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-// where P: AsRef<Path>, {
-//     let file = File::open(filename)?;
-//     Ok(io::BufReader::new(file).lines())
-// }
-
-// fn run_sbt_tests(working_dir: &str) -> io::Result<()> {
-//     let mut sbt_command = Command::new("sbt");
-//     sbt_command
-//     .current_dir(working_dir)
-//     .arg("test");
-
-//     sbt_command.status().expect("Running SBT tests failed");
-//     Ok(())
-// }
-
-// fn launch_sbt(working_dir: &str) -> io::Result<()> {
-//     let mut sbt_command = Command::new("sbt");
-//     sbt_command
-//     .current_dir(working_dir)
-//     .arg("-mem")
-//     .arg("2048");
-
-//     sbt_command.status().expect("Running SBT failed");
-//     Ok(())
-// }
