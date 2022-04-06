@@ -18,6 +18,8 @@ use futures::stream::{self, StreamExt};
 
 mod model;
 mod user_dir;
+mod console;
+mod tui_app;
 
 #[tokio::main]
 async fn main() {
