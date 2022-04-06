@@ -231,8 +231,15 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
         clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
         write_diff_files(checkout_path.as_ref(), &pr.diffs)?;
 
-        if let Some(script) = &config.script {
-          script_to_run(script, &checkout_path)?
+        match &config.script {
+          Some(script) => {
+            script_to_run(script, &checkout_path)?
+          },
+          None => {
+            println!("");
+            println!("Checkout path: {}", checkout_path.to_string());
+            println!("Diff file: {}", DIFF_FILE_LIST);
+          }
         }
 
         Ok(ProgramStatus::CompletedSuccessfully)
