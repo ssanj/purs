@@ -1,8 +1,7 @@
 use crossterm::{
-    // event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
-    event::{self, Event, KeyCode},
-    // execute,
-    // terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
 use std::{
@@ -12,8 +11,7 @@ use std::{
 };
 
 use tui::{
-    // backend::{Backend, CrosstermBackend},
-    backend::Backend,
+    backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout, Alignment},
     style::{Color, Modifier, Style},
     text::{Span, Spans},
@@ -21,31 +19,64 @@ use tui::{
     Frame, Terminal,
 };
 
-use crate::console::*;
+use crate::{console::*, model::{ValidatedPullRequest, PursError, UserInputError, R, ValidSelection, NestedError}};
+
+pub fn render_tui(items: Vec<ValidatedPullRequest>) -> R<ValidSelection> {
+    // setup terminal
+    enable_raw_mode().map_err(|e| PursError::TUIError(NestedError::from(e)))?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture).map_err(|e| PursError::TUIError(NestedError::from(e)))?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend).map_err(|e| PursError::TUIError(NestedError::from(e)))?;
+
+    // create app and run it
+    let tick_rate = Duration::from_millis(250);
+    let app = App::new(items);
+    let res = run_app(&mut terminal, app, tick_rate);
+
+    // restore terminal
+    disable_raw_mode().map_err(|e| PursError::TUIError(NestedError::from(e)))?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    ).map_err(|e| PursError::TUIError(NestedError::from(e)))?;
+    terminal.show_cursor().map_err(|e| PursError::TUIError(NestedError::from(e)))?;
+
+    // let _ = match res {
+    //   Ok(value) => println!("{}", value),
+    //   Err(err) => println!("{:?}", err)
+    // };
+
+    // Ok(())
+
+    res
+}
 
 
-fn run_app<B: Backend, T: Clone + std::fmt::Debug + std::fmt::Display>(
+fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
-    mut app: App<T>,
+    mut app: App<ValidatedPullRequest>,
     tick_rate: Duration,
-) -> io::Result<String> {
+) -> R<ValidSelection> {
     let mut last_tick = Instant::now();
     loop {
-        terminal.draw(|f| ui(f, &mut app))?;
+        terminal.draw(|f| ui(f, &mut app)).map_err(|e| PursError::TUIError(NestedError::from(e)))?;
 
         let timeout = tick_rate
             .checked_sub(last_tick.elapsed())
             .unwrap_or_else(|| Duration::from_secs(0));
-        if crossterm::event::poll(timeout)? {
-            if let Event::Key(key) = event::read()? {
+        if crossterm::event::poll(timeout).map_err(|e| PursError::TUIError(NestedError::from(e))) ? {
+            if let Event::Key(key) = event::read().map_err(|e| PursError::TUIError(NestedError::from(e)))? {
                 match key.code {
-                    KeyCode::Char('q') => return Ok("You quit".to_owned()),
+                    KeyCode::Char('q') => return Ok(ValidSelection::Quit),
                     KeyCode::Left => app.items.unselect(),
                     KeyCode::Down => app.items.next(),
                     KeyCode::Up => app.items.previous(),
                     KeyCode::Enter => {
-                      let result = format!("You selected: {:?}", app.items.get_selected());
-                      return Ok(result)
+                      let result = app.items.get_selected();
+                      let selection_error = PursError::UserError(UserInputError::InvalidNumber("Could not match selected index".to_owned()));
+                      return result.map(ValidSelection::Pr).ok_or(selection_error)
                     },
                     _ => {}
                 }

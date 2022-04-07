@@ -1,7 +1,7 @@
 use futures::FutureExt;
 use futures::future::try_join_all;
 use octocrab::{self, OctocrabBuilder, Octocrab};
-use octocrab::params;
+use octocrab::params::{self, pulls};
 use crate::model::*;
 use crate::user_dir::*;
 use std::ffi::OsStr;
@@ -15,6 +15,7 @@ extern crate unidiff;
 use unidiff::PatchSet;
 use std::time::Instant;
 use futures::stream::{self, StreamExt};
+use tui_app::render_tui;
 
 mod model;
 mod user_dir;
@@ -216,13 +217,13 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
     println!("GH API calls took {} ms", time_taken);
 
     // let pull_requests = get_dummy_prs();
-    let selection_size = pull_requests.len();
+    // let selection_size = pull_requests.len();
 
-    for (index, pr) in pull_requests.clone().into_iter().enumerate() {
-        println!("{:>2} - {}", index + 1, pr);
-    }
+    // for (index, pr) in pull_requests.clone().into_iter().enumerate() {
+    //     println!("{:>2} - {}", index + 1, pr);
+    // }
 
-    let valid_selection = handle_user_selection(selection_size, &pull_requests)?;
+    let valid_selection = handle_user_selection_tui(pull_requests.clone())?;
     match valid_selection {
       ValidSelection::Quit => Ok(ProgramStatus::UserQuit),
       ValidSelection::Pr(pr) => {
@@ -270,6 +271,10 @@ fn script_to_run(script: &ScriptToRun, checkout_path: &RepoCheckoutPath) -> R<()
           PursError::ScriptExecutionError(ScriptErrorType::Error(NestedError::from(error)))
       )
   }
+}
+
+fn handle_user_selection_tui(pulls: Vec<ValidatedPullRequest>) -> R<ValidSelection> {
+  render_tui(pulls)
 }
 
 fn handle_user_selection(selection_size: usize, selection_options: &[ValidatedPullRequest]) -> R<ValidSelection> {

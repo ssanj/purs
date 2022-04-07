@@ -225,7 +225,8 @@ pub enum PursError {
     ProcessError(NestedError), // Maybe add more information about which process was being executed?
     MultipleErrors(Vec<PursError>),
     UserError(UserInputError),
-    ScriptExecutionError(ScriptErrorType)
+    ScriptExecutionError(ScriptErrorType),
+    TUIError(NestedError)
 }
 
 impl Display for PursError {
@@ -239,6 +240,7 @@ impl Display for PursError {
             PursError::DiffParseError(error) => write!(f, "PursError.DiffParseError: {}", error),
             PursError::UserError(error) => write!(f, "PursError.UserError: {}", error),
             PursError::ScriptExecutionError(error) => write!(f, "PursError.ScriptExecutionError: {}", error),
+            PursError::TUIError(error) => write!(f, "PursError.TUIError: {}", error),
         }
     }
 }
