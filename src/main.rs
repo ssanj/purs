@@ -655,11 +655,11 @@ async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u6
     let user = r.user.login;
     let comment = r.body;
     let state = match r.state {
-      Some(Approved)         => ReviewState::Approved,
-      Some(Pending)          => ReviewState::Pending,
-      Some(ChangesRequested) => ReviewState::ChangesRequested,
-      Some(Commented)        => ReviewState::Commented,
-      Some(Dismissed)        => ReviewState::Dismissed,
+      Some(GHReviewState::Approved)         => ReviewState::Approved,
+      Some(GHReviewState::Pending)          => ReviewState::Pending,
+      Some(GHReviewState::ChangesRequested) => ReviewState::ChangesRequested,
+      Some(GHReviewState::Commented)        => ReviewState::Commented,
+      Some(GHReviewState::Dismissed)        => ReviewState::Dismissed,
       _                      => ReviewState::Other   //octocrab::models::pulls::ReviewState is non_exhaustive, so we need this wildcard match
     };
 

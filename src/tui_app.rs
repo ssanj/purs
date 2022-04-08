@@ -19,7 +19,7 @@ use tui::{
     Frame, Terminal,
 };
 
-use crate::{console::*, model::{ValidatedPullRequest, PursError, UserInputError, R, ValidSelection, NestedError}};
+use crate::{console::*, model::{ValidatedPullRequest, PursError, UserInputError, R, ValidSelection, NestedError, Reviews, Review}};
 
 pub fn render_tui(items: Vec<ValidatedPullRequest>) -> R<ValidSelection> {
     // setup terminal
@@ -188,6 +188,7 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
   let base_sha = details_key_value("Base SHA", pr.base_sha.clone());
   let comment_no = details_key_value("Comments", pr.comment_count.to_string());
   let review_no = details_key_value("Reviews", pr.reviews.count().to_string());
+
   let reviewer_names = {
     let unique_names = pr.reviews.reviewer_names();
     let mut names = unique_names.into_iter().collect::<Vec<_>>();
@@ -196,22 +197,28 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
     details_key_value("Reviewers", sorted_names)
   };
 
+  let mut reviews = get_reviews("Reviews", pr.reviews.clone());
+
   let pr_diff_no = details_key_value("Changes", pr.diffs.0.len().to_string());
 
-  vec![
-    Spans::from(""),
-    Spans::from(title),
-    Spans::from(pr_no),
-    Spans::from(pr_url),
-    Spans::from(pr_repo),
-    Spans::from(pr_branch),
-    Spans::from(head_sha),
-    Spans::from(base_sha),
-    Spans::from(comment_no),
-    Spans::from(review_no),
-    Spans::from(reviewer_names),
-    Spans::from(pr_diff_no),
-  ]
+  let mut details =
+    vec![
+      Spans::from(""),
+      Spans::from(title),
+      Spans::from(pr_no),
+      Spans::from(pr_url),
+      Spans::from(pr_repo),
+      Spans::from(pr_branch),
+      Spans::from(head_sha),
+      Spans::from(base_sha),
+      Spans::from(comment_no),
+      Spans::from(review_no),
+      Spans::from(reviewer_names),
+      Spans::from(pr_diff_no),
+    ];
+
+    details.append(&mut reviews);
+    details
 
 }
 
@@ -221,4 +228,28 @@ fn details_key_value(key: &str, value: String) -> Vec<Span> {
     Span::raw(": "),
     Span::styled(value, Style::default())
   ]
+}
+
+fn get_reviews<'a>(key: &'a str, reviews: Reviews) -> Vec<Spans<'a>> {
+  let mut items =
+    reviews.reviews.into_iter().flat_map(|r| {
+      vec![
+        Spans::from(details_key_value("Reviewer", r.user)),
+        Spans::from(details_key_value("Status", format!("{:?}", r.state))),
+        Spans::from(details_key_value("Review", r.comment.map(|s| s.len().to_string()).unwrap_or("-".to_owned()))),
+      ]
+    }).collect::<Vec<Spans>>();
+
+  let heading =
+    Spans::from(
+      vec![
+        Span::styled(key, Style::default().add_modifier(Modifier::UNDERLINED))
+      ]
+    );
+
+
+  let mut results = vec![];
+  results.push(heading);
+  results.append(&mut items);
+  results
 }
