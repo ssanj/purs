@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::path::{PathBuf, Path};
 use std::fmt::{self, Display};
@@ -466,5 +467,9 @@ pub struct Reviews {
 impl Reviews {
   pub fn count(&self) -> usize {
     self.reviews.len()
+  }
+
+  pub fn reviewer_names(&self) -> HashSet<String> {
+    self.reviews.iter().map(|r| r.user.clone()).collect()
   }
 }

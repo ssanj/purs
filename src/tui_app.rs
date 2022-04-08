@@ -188,6 +188,14 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
   let base_sha = details_key_value("Base SHA", pr.base_sha.clone());
   let comment_no = details_key_value("Comments", pr.comment_count.to_string());
   let review_no = details_key_value("Reviews", pr.reviews.count().to_string());
+  let reviewer_names = {
+    let unique_names = pr.reviews.reviewer_names();
+    let mut names = unique_names.into_iter().collect::<Vec<_>>();
+    names.sort();
+    let sorted_names = names.join(",");
+    details_key_value("Reviewers", sorted_names)
+  };
+
   let pr_diff_no = details_key_value("Changes", pr.diffs.0.len().to_string());
 
   vec![
@@ -201,6 +209,7 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
     Spans::from(base_sha),
     Spans::from(comment_no),
     Spans::from(review_no),
+    Spans::from(reviewer_names),
     Spans::from(pr_diff_no),
   ]
 
