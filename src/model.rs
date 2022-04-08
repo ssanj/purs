@@ -19,7 +19,7 @@ pub struct PullRequest {
     pub branch_name: String,
     pub head_sha: String,
     pub base_sha: String,
-    pub review_count: Reviews,
+    pub reviews: Reviews,
     pub comment_count: usize,
     pub diffs: PullRequestDiff
 }
@@ -34,7 +34,7 @@ pub struct ValidatedPullRequest {
     pub branch_name: RepoBranchName,
     pub head_sha: String,
     pub base_sha: String,
-    pub review_count: Reviews,
+    pub reviews: Reviews,
     pub comment_count: usize,
     pub diffs: PullRequestDiff
 }
@@ -42,7 +42,7 @@ pub struct ValidatedPullRequest {
 impl fmt::Display for ValidatedPullRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repo_name = &self.config_owner_repo.1.0;
-        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.review_count.count(), self.comment_count, repo_name)
+        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.reviews.count(), self.comment_count, repo_name)
     }
 }
 
@@ -53,7 +53,7 @@ pub struct PullRequestDiff(pub Vec<GitDiff>);
 impl fmt::Display for PullRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repo_name = &self.config_owner_repo.1.0;
-        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.review_count.count(), self.comment_count, repo_name)
+        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.reviews.count(), self.comment_count, repo_name)
     }
 }
 
@@ -163,7 +163,7 @@ pub struct GitDiff {
 pub struct AsyncPullRequestParts {
     pub owner_repo: OwnerRepo,
     pub pull: octocrab::models::pulls::PullRequest,
-    pub review_count_handle: JoinHandle<R<Reviews>>,
+    pub reviews_handle: JoinHandle<R<Reviews>>,
     pub comment_count_handle: JoinHandle<R<usize>>,
     pub diffs_handle: JoinHandle<R<PullRequestDiff>>
 }

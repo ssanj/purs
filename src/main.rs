@@ -201,7 +201,7 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
                 branch_name: RepoBranchName::new(pr.branch_name),
                 head_sha: pr.head_sha,
                 base_sha: pr.base_sha,
-                review_count: pr.review_count,
+                reviews: pr.reviews,
                 comment_count: pr.comment_count,
                 diffs: pr.diffs
               }
@@ -459,14 +459,14 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
     let async_parts = page_repos.iter().map(|(page, OwnerRepo(owner, repo))| {
             page.into_iter().map(|pull| {
                 let pr_no = pull.number;
-                let review_count_handle = tokio::spawn(get_reviews2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
+                let reviews_handle = tokio::spawn(get_reviews2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
                 let comment_count_handle = tokio::spawn(get_comments2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
                 let diffs_handle = tokio::spawn(get_pr_diffs2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
 
                 AsyncPullRequestParts {
                     owner_repo: OwnerRepo(owner.clone(), repo.clone()),
                     pull: pull.clone(),
-                    review_count_handle,
+                    reviews_handle,
                     comment_count_handle,
                     diffs_handle
                 }
@@ -477,16 +477,16 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
     let parts_stream = stream::iter(parts);
 
     let pr_stream =
-        parts_stream.then(|AsyncPullRequestParts { owner_repo, pull, review_count_handle, comment_count_handle, diffs_handle }|{
+        parts_stream.then(|AsyncPullRequestParts { owner_repo, pull, reviews_handle, comment_count_handle, diffs_handle }|{
             async move {
                 let res = tokio::try_join!(
-                    flatten(review_count_handle),
+                    flatten(reviews_handle),
                     flatten(comment_count_handle),
                     flatten(diffs_handle)
                 );
 
                 match res {
-                  Ok((review_count, comment_count, diffs)) => {
+                  Ok((reviews, comment_count, diffs)) => {
 
                     let pr_no = pull.number;
                     let title = pull.title.clone().unwrap_or_else(|| "-".to_string());
@@ -507,7 +507,7 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
                         head_sha,
                         repo_name,
                         base_sha,
-                        review_count,
+                        reviews,
                         comment_count,
                         diffs
                       };
@@ -565,7 +565,7 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
 //         let branch_name = pull.head.ref_field;
 //         let base_sha = pull.base.sha;
 
-//         let review_count = get_reviews(octocrab, &owner, &repo, pr_no).await?;
+//         let reviews = get_reviews(octocrab, &owner, &repo, pr_no).await?;
 //         let comment_count = get_comments(octocrab, &owner, &repo, pr_no).await?;
 //         let diffs = get_pr_diffs(octocrab, &owner, &repo, pr_no).await?;
 
@@ -578,7 +578,7 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
 //                 head_sha,
 //                 repo_name,
 //                 base_sha,
-//                 review_count,
+//                 reviews,
 //                 comment_count,
 //                 diffs
 //             }

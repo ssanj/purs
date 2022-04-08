@@ -187,7 +187,7 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
   let head_sha = details_key_value("Head SHA", pr.head_sha.clone());
   let base_sha = details_key_value("Base SHA", pr.base_sha.clone());
   let comment_no = details_key_value("Comments", pr.comment_count.to_string());
-  let review_no = details_key_value("Reviews", pr.review_count.count().to_string());
+  let review_no = details_key_value("Reviews", pr.reviews.count().to_string());
   let pr_diff_no = details_key_value("Changes", pr.diffs.0.len().to_string());
 
   vec![
