@@ -2,6 +2,7 @@ use futures::FutureExt;
 use futures::future::try_join_all;
 use octocrab::{self, OctocrabBuilder, Octocrab};
 use octocrab::params::{self, pulls};
+use octocrab::models::pulls::ReviewState as GHReviewState;
 use crate::model::*;
 use crate::user_dir::*;
 use std::ffi::OsStr;
@@ -642,14 +643,38 @@ fn parse_only_file_name(diff_file: &str) -> String {
 //     Ok(reviews.into_iter().count())
 // }
 
-async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u64) -> R<usize> {
-    let reviews =
+async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u64) -> R<Reviews> {
+    let gh_reviews =
         octocrab
         .pulls(owner.0.to_owned(), repo.0.to_owned())
         .list_reviews(pr_no)
         .await?;
 
-    Ok(reviews.into_iter().count())
+   let reviews = gh_reviews.into_iter().map(|r| {
+
+    let user = r.user.login;
+    let comment = r.body;
+    let state = match r.state {
+      Some(Approved)         => ReviewState::Approved,
+      Some(Pending)          => ReviewState::Pending,
+      Some(ChangesRequested) => ReviewState::ChangesRequested,
+      Some(Commented)        => ReviewState::Commented,
+      Some(Dismissed)        => ReviewState::Dismissed,
+      _                      => ReviewState::Other   //octocrab::models::pulls::ReviewState is non_exhaustive, so we need this wildcard match
+    };
+
+    Review {
+        user,
+        comment,
+        state
+    }
+   }).collect::<Vec<_>>();
+
+    Ok(
+      Reviews {
+        reviews
+      }
+    )
 }
 
 

@@ -184,14 +184,24 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
   let pr_url = details_key_value("Link", pr.ssh_url.to_string());
   let pr_repo = details_key_value("Repository", pr.repo_name.to_string());
   let pr_branch = details_key_value("Branch", pr.branch_name.to_string());
-
+  let head_sha = details_key_value("Head SHA", pr.head_sha.clone());
+  let base_sha = details_key_value("Base SHA", pr.base_sha.clone());
+  let comment_no = details_key_value("Comments", pr.comment_count.to_string());
+  let review_no = details_key_value("Reviews", pr.review_count.count().to_string());
+  let pr_diff_no = details_key_value("Changes", pr.diffs.0.len().to_string());
 
   vec![
+    Spans::from(""),
     Spans::from(title),
     Spans::from(pr_no),
     Spans::from(pr_url),
     Spans::from(pr_repo),
     Spans::from(pr_branch),
+    Spans::from(head_sha),
+    Spans::from(base_sha),
+    Spans::from(comment_no),
+    Spans::from(review_no),
+    Spans::from(pr_diff_no),
   ]
 
 }
