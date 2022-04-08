@@ -89,7 +89,7 @@ fn run_app<B: Backend>(
     }
 }
 
-fn ui<B: Backend, T: Clone + std::fmt::Debug + std::fmt::Display>(f: &mut Frame<B>, app: &mut App<T>)
+fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ValidatedPullRequest>)
 {
     // Create two chunks with equal horizontal screen space
     let chunks = Layout::default()
@@ -122,7 +122,14 @@ fn ui<B: Backend, T: Clone + std::fmt::Debug + std::fmt::Display>(f: &mut Frame<
     f.render_stateful_widget(items, chunks[0], &mut app.items.state);
 
     let selected =
-      app.items.state.selected().and_then(|i| app.items.items.get(i).map(|x| x.to_owned()));
+      app.items
+        .state.selected()
+        .and_then(|i| {
+          app.items
+            .items
+            .get(i)
+            .map(|x| x)
+        });
 
     // let text = vec![
     //     Spans::from(vec![
@@ -134,13 +141,65 @@ fn ui<B: Backend, T: Clone + std::fmt::Debug + std::fmt::Display>(f: &mut Frame<
     //     Spans::from(Span::styled(format!("Selected: {:?}", selected), Style::default().fg(Color::Red))),
     // ];
 
-    let text = "blee";
-    let p = Paragraph::new(text)
+    let text =
+      selected
+        .clone()
+        .map_or(
+          no_pr_details("Select a PR to view its details"),
+          |pr| pr_details(pr)
+        );
+
+    let p =
+      Paragraph::new(text)
         .block(Block::default().title("Details").borders(Borders::ALL))
         .style(Style::default().fg(Color::White).bg(Color::Black))
-        .alignment(Alignment::Center)
+        .alignment({
+            match selected {
+              Some(_) => Alignment::Left,
+              None => Alignment::Center
+            }
+        })
         .wrap(Wrap { trim: true });
 
     // let banner = Text::raw("Select an item to display its details");
     f.render_widget(p, chunks[1]);
+}
+
+
+fn no_pr_details(message: &str) -> Vec<Spans> {
+  let style = Style::default().fg(Color::Yellow);
+  vec![
+    Spans::from(
+      vec![
+      Span::styled(message, style)
+      ]
+    )
+  ]
+}
+
+fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
+
+  let title = details_key_value("Title", pr.title.clone());
+  let pr_no = details_key_value("PR#", pr.pr_number.to_string());
+  let pr_url = details_key_value("Link", pr.ssh_url.to_string());
+  let pr_repo = details_key_value("Repository", pr.repo_name.to_string());
+  let pr_branch = details_key_value("Branch", pr.branch_name.to_string());
+
+
+  vec![
+    Spans::from(title),
+    Spans::from(pr_no),
+    Spans::from(pr_url),
+    Spans::from(pr_repo),
+    Spans::from(pr_branch),
+  ]
+
+}
+
+fn details_key_value(key: &str, value: String) -> Vec<Span> {
+  vec![
+    Span::styled(key, Style::default().add_modifier(Modifier::BOLD)),
+    Span::raw(": "),
+    Span::styled(value, Style::default())
+  ]
 }
