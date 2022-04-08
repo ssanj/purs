@@ -3,21 +3,21 @@
 
 ## Features
 
-- [ ] Add more info about the PRs
-  - [ ] Number of Approvals
 - Write each run command
 - Only show info on reviews and comments if they exist. That makes it easier to find.
-- Tabulate the output
 
 ## Design
 
 - The title line should be of the form:
+  - Tag for Draft 🔧
 
-- Title
-- Tag for repo name. Eg. (weaver-test)
-- Tag for whether it's a whale (> 10 updates)
-- Tag for Draft
-- Tag for Activity (fire if there are multiple reviewers)
-- Tag if its approved
+- Add a legend with the options to the Details section when there are no selections:
 
-These can take precedence; Eg. if a PR is approved we don't care about Activity for instance.
+- Q to quit
+- Up/Down arrows to select a PR
+- Left arrow to move out of select mode
+- O to open the selected PR in your default browser
+- H to copy Head SHA to the clipboard
+- B to copy base SHA to the clipboard
+- C to copy curl to retrieve PR content
+- U to copy clone url to clipboard

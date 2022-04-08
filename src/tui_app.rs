@@ -165,11 +165,13 @@ fn no_pr_details(message: &str) -> Vec<Spans> {
 
 fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
 
+
+  let owner_repo = details_key_value("Base Repository", pr.config_owner_repo.to_string());
   let title = details_key_value("Title", pr.title.clone());
   let pr_no = details_key_value("PR#", pr.pr_number.to_string());
-  let pr_url = details_key_value("Link", pr.ssh_url.to_string());
-  let pr_repo = details_key_value("Repository", pr.repo_name.to_string());
-  let pr_branch = details_key_value("Branch", pr.branch_name.to_string());
+  let pr_url = details_key_value("Clone URL", pr.ssh_url.to_string());
+  let pr_repo = details_key_value("PR Repository", pr.repo_name.to_string());
+  let pr_branch = details_key_value("PR Branch", pr.branch_name.to_string());
   let head_sha = details_key_value("Head SHA", pr.head_sha.clone());
   let base_sha = details_key_value("Base SHA", pr.base_sha.clone());
   let comment_no = details_key_value("Comments", pr.comment_count.to_string());
@@ -187,6 +189,7 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
 
   vec![
     Spans::from(""),
+    Spans::from(owner_repo),
     Spans::from(title),
     Spans::from(pr_no),
     Spans::from(pr_url),
@@ -204,7 +207,7 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
 
 fn details_key_value(key: &str, value: String) -> Vec<Span> {
   vec![
-    Span::styled(key, Style::default().add_modifier(Modifier::BOLD)),
+    Span::styled(key, Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
     Span::raw(": "),
     Span::styled(value, Style::default())
   ]
@@ -263,6 +266,6 @@ fn pr_line(pr: &ValidatedPullRequest) -> Vec<Span> {
     spacer.clone(),
     comment_activity,
     spacer.clone(),
-    approved
+    approved,
   ]
 }

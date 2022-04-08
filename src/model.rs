@@ -97,6 +97,12 @@ impl Display for Repo {
 #[derive(Clone, Debug)]
 pub struct OwnerRepo(pub Owner, pub Repo);
 
+impl Display for OwnerRepo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{}/{}", self.0.0, self.1.0)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct NonEmptyVec<T> {
     first: T,
