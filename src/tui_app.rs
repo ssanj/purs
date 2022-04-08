@@ -19,7 +19,7 @@ use tui::{
     Frame, Terminal,
 };
 
-use crate::{console::*, model::{ValidatedPullRequest, PursError, UserInputError, R, ValidSelection, NestedError, Reviews, Review}};
+use crate::{console::*, model::{ValidatedPullRequest, PursError, UserInputError, R, ValidSelection, NestedError, Reviews, Review, ReviewState}};
 
 pub fn render_tui(items: Vec<ValidatedPullRequest>) -> R<ValidSelection> {
     // setup terminal
@@ -103,16 +103,21 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ValidatedPullRequest>)
         .items
         .iter()
         .map(|i| {
-            let lines = vec![Spans::from(i.to_string())];
-            ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::White))
+            let lines = Spans::from(pr_line(i));
+            ListItem::new(lines)
+              .style(
+                Style::default()
+              )
         })
         .collect();
 
     // Create a List from all list items and highlight the currently selected one
-    let items = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title("List"))
+    let items =
+      List::new(items)
+        .block(Block::default().borders(Borders::ALL).title("Pull Requests"))
         .highlight_style(
             Style::default()
+                .fg(Color::White)
                 .bg(Color::LightGreen)
                 .add_modifier(Modifier::BOLD),
         )
@@ -130,16 +135,6 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ValidatedPullRequest>)
             .get(i)
             .map(|x| x)
         });
-
-    // let text = vec![
-    //     Spans::from(vec![
-    //         Span::raw("First"),
-    //         Span::styled("line",Style::default().fg(Color::Green).add_modifier(Modifier::ITALIC)),
-    //         Span::raw("."),
-    //     ]),
-    //     Spans::from(Span::styled("Second line 🔥", Style::default().fg(Color::Red))),
-    //     Spans::from(Span::styled(format!("Selected: {:?}", selected), Style::default().fg(Color::Red))),
-    // ];
 
     let text =
       selected
@@ -161,7 +156,6 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ValidatedPullRequest>)
         })
         .wrap(Wrap { trim: true });
 
-    // let banner = Text::raw("Select an item to display its details");
     f.render_widget(p, chunks[1]);
 }
 
@@ -252,4 +246,61 @@ fn get_reviews<'a>(key: &'a str, reviews: Reviews) -> Vec<Spans<'a>> {
   results.push(heading);
   results.append(&mut items);
   results
+}
+
+
+fn pr_line(pr: &ValidatedPullRequest) -> Vec<Span> {
+
+  let title = Span::raw(pr.title.to_owned());
+  let no_changes = pr.diffs.0.len();
+
+  let spacer = Span::raw(" ");
+
+  let no_reviews = pr.reviews.count();
+  let no_comments = pr.comment_count;
+
+  let approved_no =
+    pr.reviews.reviews
+      .iter()
+      .filter_map(|r| {
+        match r.state {
+          ReviewState::Approved => Some("✅".to_owned()),
+          _ => None,
+        }
+      })
+      .collect::<Vec<_>>();
+
+  let approved = Span::raw(approved_no.join(""));
+
+  let review_activty =
+    match no_reviews {
+      0 => Span::styled("", Style::default().add_modifier(Modifier::HIDDEN)),
+      _ => Span::raw("👀")
+    };
+
+  let pr_size =
+    match no_changes {
+      0..=10  => Span::raw("🐁"),
+      11..=20 => Span::raw("🐕"),
+      21..=40 => Span::raw("🐘"),
+      _       => Span::raw("🐳")
+    };
+
+  let comment_activity =
+    match no_comments {
+      0 => Span::styled("", Style::default().add_modifier(Modifier::HIDDEN)),
+      _ => Span::raw("💬")
+    };
+
+  vec![
+    title,
+    spacer.clone(),
+    pr_size,
+    spacer.clone(),
+    review_activty,
+    spacer.clone(),
+    comment_activity,
+    spacer.clone(),
+    approved
+  ]
 }
