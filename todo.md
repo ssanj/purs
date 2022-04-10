@@ -10,6 +10,7 @@
 
 - The title line should be of the form:
   - Tag for Draft 🔧
+  - PRs should have more line spacing
 
 - Add a legend with the options to the Details section when there are no selections:
 

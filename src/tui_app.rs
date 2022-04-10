@@ -95,7 +95,12 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ValidatedPullRequest>)
         .items
         .iter()
         .map(|i| {
-            let lines = Spans::from(pr_line(i));
+            let lines =
+              vec![
+                  Spans::from(pr_line(i)),
+                  Spans::from("")
+                ];
+
             ListItem::new(lines)
               .style(
                 Style::default()
@@ -245,7 +250,7 @@ fn pr_line(pr: &ValidatedPullRequest) -> Vec<Span> {
 
   let pr_size =
     match no_changes {
-      0..=10  => Span::raw("🐁"),
+      0..=10  => Span::styled("", Style::default().add_modifier(Modifier::HIDDEN)),
       11..=20 => Span::raw("🐕"),
       21..=40 => Span::raw("🐘"),
       _       => Span::raw("🐳")
