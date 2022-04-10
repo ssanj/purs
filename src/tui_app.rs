@@ -97,8 +97,8 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ValidatedPullRequest>)
         .map(|i| {
             let lines =
               vec![
+                  Spans::from(""),
                   Spans::from(pr_line(i)),
-                  Spans::from("")
                 ];
 
             ListItem::new(lines)
@@ -118,7 +118,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ValidatedPullRequest>)
                 .bg(Color::LightGreen)
                 .add_modifier(Modifier::BOLD),
         )
-        .highlight_symbol(">> ");
+        .highlight_symbol(" ");
 
     // We can now render the item list
     f.render_stateful_widget(items, chunks[0], &mut app.items.state);
@@ -192,6 +192,8 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
 
   let pr_diff_no = details_key_value("Changes", pr.diffs.0.len().to_string());
 
+  let draft = details_key_value("Draft", pr.draft.to_string());
+
   vec![
     Spans::from(""),
     Spans::from(owner_repo),
@@ -206,6 +208,7 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
     Spans::from(review_no),
     Spans::from(reviewer_names),
     Spans::from(pr_diff_no),
+    Spans::from(draft),
   ]
 
 }
@@ -262,6 +265,13 @@ fn pr_line(pr: &ValidatedPullRequest) -> Vec<Span> {
       _ => Span::raw("💬")
     };
 
+  let is_draft =
+    if pr.draft {
+      Span::raw("🔧", )
+    } else {
+      Span::styled("", Style::default().add_modifier(Modifier::HIDDEN))
+    };
+
   vec![
     title,
     spacer.clone(),
@@ -270,6 +280,8 @@ fn pr_line(pr: &ValidatedPullRequest) -> Vec<Span> {
     review_activty,
     spacer.clone(),
     comment_activity,
+    spacer.clone(),
+    is_draft,
     spacer.clone(),
     approved,
   ]

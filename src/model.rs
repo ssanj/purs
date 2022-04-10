@@ -22,7 +22,8 @@ pub struct PullRequest {
     pub base_sha: String,
     pub reviews: Reviews,
     pub comment_count: usize,
-    pub diffs: PullRequestDiff
+    pub diffs: PullRequestDiff,
+    pub draft: Option<bool>
 }
 
 #[derive(Debug, Clone)]
@@ -37,7 +38,8 @@ pub struct ValidatedPullRequest {
     pub base_sha: String,
     pub reviews: Reviews,
     pub comment_count: usize,
-    pub diffs: PullRequestDiff
+    pub diffs: PullRequestDiff,
+    pub draft: bool
 }
 
 impl fmt::Display for ValidatedPullRequest {

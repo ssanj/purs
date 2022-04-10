@@ -203,7 +203,8 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
                 base_sha: pr.base_sha,
                 reviews: pr.reviews,
                 comment_count: pr.comment_count,
-                diffs: pr.diffs
+                diffs: pr.diffs,
+                draft: pr.draft.map(|d| d == true).unwrap_or(false)
               }
             )
           },
@@ -496,6 +497,7 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
                     let branch_name = pull.head.ref_field;
                     let base_sha = pull.base.sha;
                     let config_owner_repo = owner_repo;
+                    let draft = pull.draft;
 
                     let pr =
                       PullRequest {
@@ -509,7 +511,8 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
                         base_sha,
                         reviews,
                         comment_count,
-                        diffs
+                        diffs,
+                        draft
                       };
 
                     Ok(pr)
