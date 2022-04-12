@@ -8,7 +8,6 @@
 
 ## Design
 
-- Correct spacing on PR line when some options are missing
 - Add a legend with the options to the Details section when there are no selections:
 
 - Q to quit

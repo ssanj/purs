@@ -223,17 +223,75 @@ fn details_key_value(key: &str, value: String) -> Vec<Span> {
 
 
 fn pr_line(pr: &ValidatedPullRequest) -> Vec<Span> {
+    let labels =
+      vec![
+        title(&pr.title),
+        pr_size(pr.diffs.0.len()),
+        review_activity(pr.reviews.count()),
+        comment_activity(pr.comment_count),
+        draft(pr.draft),
+        approved(pr.reviews.clone()),
+      ]
+      .into_iter()
+      .filter_map(|e| e.clone())
+      .collect::<Vec<_>>();
 
-  let title = Span::raw(pr.title.to_owned());
-  let no_changes = pr.diffs.0.len();
+      separate_by(labels, Span::raw(" "))
+}
 
-  let spacer = Span::raw(" ");
+//TODO: Can we use a Join implementation here?
+fn separate_by<T: Clone>(items: Vec<T>, separator: T) -> Vec<T> {
+  let mut separated_items = vec![];
+  let item_size = items.len();
 
-  let no_reviews = pr.reviews.count();
-  let no_comments = pr.comment_count;
+  for (index, item) in items.iter().enumerate() {
+    separated_items.push(item.clone());
 
+    if (index + 1) < item_size {
+      separated_items.push(separator.clone());
+    }
+  }
+
+  separated_items
+}
+
+fn title(title: &str) -> Option<Span> {
+  Some(Span::raw(title.to_owned()))
+}
+
+fn pr_size<'a>(no_changes: usize) -> Option<Span<'a>> {
+    match no_changes {
+      0..=10  => None,
+      11..=20 => Some(Span::raw("🐕")),
+      21..=40 => Some(Span::raw("🐘")),
+      _       => Some(Span::raw("🐳"))
+    }
+}
+
+fn review_activity<'a>(no_reviews: usize) -> Option<Span<'a>> {
+  match no_reviews {
+    0 => None,
+    _ => Some(Span::raw("👀"))
+  }
+}
+
+fn comment_activity<'a>(no_comments: usize) -> Option<Span<'a>> {
+  match no_comments {
+    0 => None,
+    _ => Some(Span::raw("💬"))
+  }
+}
+
+fn draft<'a>(is_draft: bool) -> Option<Span<'a>> {
+  match is_draft {
+    true => Some(Span::raw("🔧", )),
+    false => None
+  }
+}
+
+fn approved<'a>(reviews: Reviews) -> Option<Span<'a>> {
   let approved_no =
-    pr.reviews.reviews
+    reviews.reviews
       .iter()
       .filter_map(|r| {
         match r.state {
@@ -243,46 +301,5 @@ fn pr_line(pr: &ValidatedPullRequest) -> Vec<Span> {
       })
       .collect::<Vec<_>>();
 
-  let approved = Span::raw(approved_no.join(""));
-
-  let review_activty =
-    match no_reviews {
-      0 => Span::styled("", Style::default().add_modifier(Modifier::HIDDEN)),
-      _ => Span::raw("👀")
-    };
-
-  let pr_size =
-    match no_changes {
-      0..=10  => Span::styled("", Style::default().add_modifier(Modifier::HIDDEN)),
-      11..=20 => Span::raw("🐕"),
-      21..=40 => Span::raw("🐘"),
-      _       => Span::raw("🐳")
-    };
-
-  let comment_activity =
-    match no_comments {
-      0 => Span::styled("", Style::default().add_modifier(Modifier::HIDDEN)),
-      _ => Span::raw("💬")
-    };
-
-  let is_draft =
-    if pr.draft {
-      Span::raw("🔧", )
-    } else {
-      Span::styled("", Style::default().add_modifier(Modifier::HIDDEN))
-    };
-
-  vec![
-    title,
-    spacer.clone(),
-    pr_size,
-    spacer.clone(),
-    review_activty,
-    spacer.clone(),
-    comment_activity,
-    spacer.clone(),
-    is_draft,
-    spacer.clone(),
-    approved,
-  ]
+  Some(Span::raw(approved_no.join("")))
 }
