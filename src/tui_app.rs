@@ -18,7 +18,7 @@ use tui::{
     Frame, Terminal,
 };
 
-use crate::{console::*, model::{ValidatedPullRequest, PursError, UserInputError, R, ValidSelection, NestedError, Reviews, Review, ReviewState}};
+use crate::{console::*, model::{ValidatedPullRequest, PursError, UserInputError, R, ValidSelection, NestedError, Reviews, ReviewState}};
 
 pub fn render_tui(items: Vec<ValidatedPullRequest>) -> R<ValidSelection> {
     // setup terminal

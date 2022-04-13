@@ -4,6 +4,7 @@ use std::path::{PathBuf, Path};
 use std::fmt::{self, Display};
 use std::error::Error;
 use tokio::task::JoinHandle;
+use chrono::{DateTime, Utc};
 
 pub type R<T> = Result<T, PursError>;
 
@@ -23,7 +24,9 @@ pub struct PullRequest {
     pub reviews: Reviews,
     pub comment_count: usize,
     pub diffs: PullRequestDiff,
-    pub draft: Option<bool>
+    pub draft: Option<bool>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone)]
@@ -39,7 +42,9 @@ pub struct ValidatedPullRequest {
     pub reviews: Reviews,
     pub comment_count: usize,
     pub diffs: PullRequestDiff,
-    pub draft: bool
+    pub draft: bool,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
 }
 
 impl fmt::Display for ValidatedPullRequest {

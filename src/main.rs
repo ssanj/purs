@@ -1,7 +1,7 @@
 use futures::FutureExt;
 use futures::future::try_join_all;
 use octocrab::{self, OctocrabBuilder, Octocrab};
-use octocrab::params::{self, pulls};
+use octocrab::params::{self};
 use octocrab::models::pulls::ReviewState as GHReviewState;
 use crate::model::*;
 use crate::user_dir::*;
@@ -204,7 +204,9 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
                 reviews: pr.reviews,
                 comment_count: pr.comment_count,
                 diffs: pr.diffs,
-                draft: pr.draft.map(|d| d == true).unwrap_or(false)
+                draft: pr.draft.map(|d| d == true).unwrap_or(false),
+                created_at: pr.created_at,
+                updated_at: pr.updated_at,
               }
             )
           },
@@ -498,6 +500,8 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
                     let base_sha = pull.base.sha;
                     let config_owner_repo = owner_repo;
                     let draft = pull.draft;
+                    let created_at = pull.created_at;
+                    let updated_at = pull.updated_at;
 
                     let pr =
                       PullRequest {
@@ -512,7 +516,9 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
                         reviews,
                         comment_count,
                         diffs,
-                        draft
+                        draft,
+                        created_at,
+                        updated_at
                       };
 
                     Ok(pr)
