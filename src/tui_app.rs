@@ -1,3 +1,4 @@
+use chrono::{DateTime, TimeZone};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
@@ -6,7 +7,7 @@ use crossterm::{
 
 use std::{
     io,
-    time::{Duration, Instant},
+    time::{Duration, Instant}, fmt::Display,
 };
 
 use tui::{
@@ -181,6 +182,8 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
   let base_sha = details_key_value("Base SHA", pr.base_sha.clone());
   let comment_no = details_key_value("Comments", pr.comment_count.to_string());
   let review_no = details_key_value("Reviews", pr.reviews.count().to_string());
+  let created_at = details_key_value("Created at", get_date_time(pr.created_at));
+  let updated_at = details_key_value("Updated at", get_date_time(pr.updated_at));
 
   let reviewer_names = {
     let unique_names = pr.reviews.reviewer_names();
@@ -196,6 +199,8 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
 
   vec![
     Spans::from(""),
+    Spans::from(created_at),
+    Spans::from(updated_at),
     Spans::from(owner_repo),
     Spans::from(title),
     Spans::from(pr_no),
@@ -211,6 +216,14 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
     Spans::from(draft),
   ]
 
+}
+
+fn get_date_time<T: TimeZone>(date_time_option: Option<DateTime<T>>) -> String
+  where T::Offset: Display
+{
+  date_time_option
+    .map(|t| t.to_rfc2822())
+    .unwrap_or("-".to_owned())
 }
 
 fn details_key_value(key: &str, value: String) -> Vec<Span> {
