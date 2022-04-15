@@ -1,4 +1,4 @@
-use chrono::{DateTime, TimeZone};
+use chrono::{DateTime, TimeZone, Utc};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
@@ -244,6 +244,7 @@ fn pr_line(pr: &ValidatedPullRequest) -> Vec<Span> {
         comment_activity(pr.comment_count),
         draft(pr.draft),
         approved(pr.reviews.clone()),
+        is_old(pr.updated_at),
       ]
       .into_iter()
       .filter_map(|e| e.clone())
@@ -315,4 +316,15 @@ fn approved<'a>(reviews: Reviews) -> Option<Span<'a>> {
       .collect::<Vec<_>>();
 
   Some(Span::raw(approved_no.join("")))
+}
+
+fn is_old<'a>(time_opt: Option<DateTime<Utc>>) -> Option<Span<'a>> {
+  time_opt.and_then(|t|{
+    let is_older_than_a_week = Utc::now().signed_duration_since(t).num_days() > 7;
+    if is_older_than_a_week {
+      Some(Span::raw("🦕".to_owned()))
+    } else {
+      None
+    }
+  })
 }
