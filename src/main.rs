@@ -362,6 +362,9 @@ fn clone_branch(ssh_url: GitRepoSshUrl, checkout_path: RepoCheckoutPath, branch_
 // TODO: Do we want the diff file to be configurable?
 fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
   println!("Generating diff files...");
+
+  let write_start = Instant::now();
+
   let file_list_path = Path::new(checkout_path).join(DIFF_FILE_LIST);
   // TODO: Do we want to wrap this error?
   let mut file_list = File::create(&file_list_path) .unwrap();
@@ -377,6 +380,9 @@ fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
       let buf: &[u8]= d.contents.as_ref();
       f.write_all(buf).unwrap(); // TODO: Do we want to wrap this error?
   });
+
+  let time_taken = write_start.elapsed().as_millis();
+  println!("Writing diff files took {} ms", time_taken);
 
   Ok(())
 }
