@@ -202,7 +202,7 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
                 head_sha: pr.head_sha,
                 base_sha: pr.base_sha,
                 reviews: pr.reviews,
-                comment_count: pr.comment_count,
+                comment_count: pr.comments,
                 diffs: pr.diffs,
                 draft: pr.draft.map(|d| d == true).unwrap_or(false),
                 created_at: pr.created_at,
@@ -495,7 +495,7 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
                 );
 
                 match res {
-                  Ok((reviews, comment_count, diffs)) => {
+                  Ok((reviews, comments, diffs)) => {
 
                     let pr_no = pull.number;
                     let title = pull.title.clone().unwrap_or_else(|| "-".to_string());
@@ -520,7 +520,7 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
                         repo_name,
                         base_sha,
                         reviews,
-                        comment_count,
+                        comments,
                         diffs,
                         draft,
                         created_at,

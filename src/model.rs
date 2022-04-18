@@ -22,7 +22,7 @@ pub struct PullRequest {
     pub head_sha: String,
     pub base_sha: String,
     pub reviews: Reviews,
-    pub comment_count: usize,
+    pub comments: usize,
     pub diffs: PullRequestDiff,
     pub draft: Option<bool>,
     pub created_at: Option<DateTime<Utc>>,
@@ -61,7 +61,7 @@ pub struct PullRequestDiff(pub Vec<GitDiff>);
 impl fmt::Display for PullRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repo_name = &self.config_owner_repo.1.0;
-        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.reviews.count(), self.comment_count, repo_name)
+        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.reviews.count(), self.comments, repo_name)
     }
 }
 
