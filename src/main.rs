@@ -202,7 +202,7 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
                 head_sha: pr.head_sha,
                 base_sha: pr.base_sha,
                 reviews: pr.reviews,
-                comment_count: pr.comments,
+                comment_count: pr.comments.count(),
                 diffs: pr.diffs,
                 draft: pr.draft.map(|d| d == true).unwrap_or(false),
                 created_at: pr.created_at,
@@ -469,14 +469,14 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
             page.into_iter().map(|pull| {
                 let pr_no = pull.number;
                 let reviews_handle = tokio::spawn(get_reviews2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
-                let comment_count_handle = tokio::spawn(get_comments2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
+                let comments_handle = tokio::spawn(get_comments2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
                 let diffs_handle = tokio::spawn(get_pr_diffs2(octocrab.clone(), owner.clone(), repo.clone(), pr_no));
 
                 AsyncPullRequestParts {
                     owner_repo: OwnerRepo(owner.clone(), repo.clone()),
                     pull: pull.clone(),
                     reviews_handle,
-                    comment_count_handle,
+                    comments_handle,
                     diffs_handle
                 }
             }).collect::<Vec<_>>()
@@ -486,11 +486,11 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
     let parts_stream = stream::iter(parts);
 
     let pr_stream =
-        parts_stream.then(|AsyncPullRequestParts { owner_repo, pull, reviews_handle, comment_count_handle, diffs_handle }|{
+        parts_stream.then(|AsyncPullRequestParts { owner_repo, pull, reviews_handle, comments_handle, diffs_handle }|{
             async move {
                 let res = tokio::try_join!(
                     flatten(reviews_handle),
-                    flatten(comment_count_handle),
+                    flatten(comments_handle),
                     flatten(diffs_handle)
                 );
 
@@ -693,7 +693,7 @@ async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u6
 }
 
 
-async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64) -> R<usize> {
+async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64) -> R<Comments> {
     let comments =
         octocrab
         .pulls(owner.0.to_owned(), repo.0.to_owned())
@@ -701,7 +701,22 @@ async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64)
         .send()
         .await?;
 
-    Ok(comments.into_iter().count())
+    let comments =
+      comments.into_iter().map(|c| {
+        Comment {
+          comment_id: CommentId::new(c.id.0),
+          diff_hunk: c.diff_hunk,
+          line: c.line.map(LineNumber::new),
+          in_reply_to_id: c.in_reply_to_id.map(CommentId::new)
+        }
+      }).collect();
+
+
+    Ok(
+      Comments {
+        comments
+      }
+    )
 }
 
 
