@@ -486,3 +486,37 @@ impl Reviews {
     self.reviews.iter().map(|r| r.user.clone()).collect()
   }
 }
+
+#[derive(Debug, Clone)]
+pub struct CommentId(u64);
+
+impl CommentId {
+  pub fn new(comment_id: u64) -> Self {
+    CommentId(comment_id)
+  }
+}
+
+#[derive(Debug, Clone)]
+pub struct LineNumber(u64);
+
+impl LineNumber {
+  pub fn new(line_no: u64) -> Self {
+    LineNumber(line_no)
+  }
+}
+
+
+#[derive(Debug, Clone)]
+pub struct Comment {
+  pub comment_id: CommentId,
+  pub diff_hunk: String,
+  pub line: Option<LineNumber>,
+  pub in_reply_to_id: Option<CommentId>
+}
+
+
+#[derive(Debug, Clone)]
+pub struct Comments {
+  pub comments: Vec<Comment>
+}
+
