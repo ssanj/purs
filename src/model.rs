@@ -510,6 +510,9 @@ impl LineNumber {
 pub struct Comment {
   pub comment_id: CommentId,
   pub diff_hunk: String,
+  pub body: String,
+  // pub author: User,
+  pub comment_url: Url,
   pub line: Option<LineNumber>,
   pub in_reply_to_id: Option<CommentId>
 }
@@ -525,4 +528,21 @@ impl Comments {
     self.comments.len()
   }
 }
+
+#[derive(Debug, Clone)]
+pub struct Url(String);
+
+impl Url {
+  pub fn new(url: String) -> Self {
+    Url(url)
+  }
+}
+
+
+//#[derive(Debug, Clone)]
+// struct User {
+//   name: String,
+//   url: String
+// }
+
 
