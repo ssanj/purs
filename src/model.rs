@@ -511,7 +511,7 @@ pub struct Comment {
   pub comment_id: CommentId,
   pub diff_hunk: String,
   pub body: String,
-  // pub author: User,
+  pub author: User,
   pub comment_url: Url,
   pub line: Option<LineNumber>,
   pub in_reply_to_id: Option<CommentId>
@@ -539,10 +539,19 @@ impl Url {
 }
 
 
-//#[derive(Debug, Clone)]
-// struct User {
-//   name: String,
-//   url: String
-// }
+#[derive(Debug, Clone)]
+pub struct User {
+  name: String,
+  gravatar: Url,
+}
+
+impl User {
+  pub fn new(name: String, gravatar: Url) -> Self {
+    User {
+      name,
+      gravatar
+    }
+  }
+}
 
 

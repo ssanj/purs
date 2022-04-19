@@ -703,13 +703,17 @@ async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64)
 
     let comments =
       comments.into_iter().map(|c| {
+
+        let author = User::new(c.user.login, Url::new(c.user.avatar_url.into()));
+
         Comment {
           comment_id: CommentId::new(c.id.0),
           diff_hunk: c.diff_hunk,
           body: c.body,
           line: c.line.map(LineNumber::new),
           in_reply_to_id: c.in_reply_to_id.map(CommentId::new),
-          comment_url: Url::new(c.html_url.into())
+          comment_url: Url::new(c.html_url.into()),
+          author
         }
       }).collect();
 
