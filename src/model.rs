@@ -554,4 +554,8 @@ impl User {
   }
 }
 
-
+impl From<url::Url> for Url {
+  fn from(url: url::Url) -> Self {
+      Url::new(url.into())
+  }
+}

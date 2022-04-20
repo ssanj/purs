@@ -899,6 +899,7 @@ dependencies = [
  "tokio",
  "tui",
  "unidiff",
+ "url",
 ]
 
 [[package]]
