@@ -896,6 +896,8 @@ dependencies = [
  "dirs",
  "futures",
  "octocrab",
+ "serde",
+ "serde_json",
  "tokio",
  "tui",
  "unidiff",

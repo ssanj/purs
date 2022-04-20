@@ -180,7 +180,7 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
   let pr_branch = details_key_value("PR Branch", pr.branch_name.to_string());
   let head_sha = details_key_value("Head SHA", pr.head_sha.clone());
   let base_sha = details_key_value("Base SHA", pr.base_sha.clone());
-  let comment_no = details_key_value("Comments", pr.comment_count.to_string());
+  let comment_no = details_key_value("Comments", pr.comments.count().to_string());
   let review_no = details_key_value("Reviews", pr.reviews.count().to_string());
   let created_at = details_key_value("Created at", get_date_time(pr.created_at));
   let updated_at = details_key_value("Updated at", get_date_time(pr.updated_at));
@@ -241,7 +241,7 @@ fn pr_line(pr: &ValidatedPullRequest) -> Vec<Span> {
         title(&pr.title),
         pr_size(pr.diffs.0.len()),
         review_activity(pr.reviews.count()),
-        comment_activity(pr.comment_count),
+        comment_activity(pr.comments.count()),
         draft(pr.draft),
         approved(pr.reviews.clone()),
         is_old(pr.updated_at),

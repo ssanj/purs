@@ -1,7 +1,7 @@
 use futures::FutureExt;
 use futures::future::try_join_all;
 use octocrab::{self, OctocrabBuilder, Octocrab};
-use octocrab::params::{self};
+use octocrab::params;
 use octocrab::models::pulls::ReviewState as GHReviewState;
 use crate::model::*;
 use crate::user_dir::*;
@@ -202,7 +202,7 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
                 head_sha: pr.head_sha,
                 base_sha: pr.base_sha,
                 reviews: pr.reviews,
-                comment_count: pr.comments.count(),
+                comments: pr.comments,
                 diffs: pr.diffs,
                 draft: pr.draft.map(|d| d == true).unwrap_or(false),
                 created_at: pr.created_at,
@@ -237,6 +237,7 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
 
         clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
         write_diff_files(checkout_path.as_ref(), &pr.diffs)?;
+        // write_comment_files(checkout_path.as_ref(), &pr.)?;
 
         match &config.script {
           Some(script) => {

@@ -5,6 +5,7 @@ use std::fmt::{self, Display};
 use std::error::Error;
 use tokio::task::JoinHandle;
 use chrono::{DateTime, Utc};
+use serde::Serialize;
 
 pub type R<T> = Result<T, PursError>;
 
@@ -40,7 +41,7 @@ pub struct ValidatedPullRequest {
     pub head_sha: String,
     pub base_sha: String,
     pub reviews: Reviews,
-    pub comment_count: usize,
+    pub comments: Comments,
     pub diffs: PullRequestDiff,
     pub draft: bool,
     pub created_at: Option<DateTime<Utc>>,
@@ -50,7 +51,7 @@ pub struct ValidatedPullRequest {
 impl fmt::Display for ValidatedPullRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repo_name = &self.config_owner_repo.1.0;
-        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.reviews.count(), self.comment_count, repo_name)
+        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.reviews.count(), self.comments.count(), repo_name)
     }
 }
 
@@ -527,6 +528,10 @@ impl Comments {
   pub fn count(&self) -> usize {
     self.comments.len()
   }
+
+  pub fn is_empty(&self) -> bool {
+    self.comments.is_empty()
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -558,4 +563,13 @@ impl From<url::Url> for Url {
   fn from(url: url::Url) -> Self {
       Url::new(url.into())
   }
+}
+
+
+#[derive(Serialize)]
+pub struct CommentJson {
+  pub user_name: String,
+  pub user_icon: String,
+  pub line: u64,
+  pub link: String
 }
