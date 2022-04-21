@@ -22,6 +22,7 @@ mod model;
 mod user_dir;
 mod console;
 mod tui_app;
+mod tools;
 
 #[tokio::main]
 async fn main() {
@@ -236,8 +237,7 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
         let branch_name = pr.branch_name;
 
         clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
-        write_diff_files(checkout_path.as_ref(), &pr.diffs)?;
-        // write_comment_files(checkout_path.as_ref(), &pr.)?;
+        write_diff_files(checkout_path.as_ref(), &pr.diffs, &pr.comments)?;
 
         match &config.script {
           Some(script) => {
@@ -361,7 +361,7 @@ fn clone_branch(ssh_url: GitRepoSshUrl, checkout_path: RepoCheckoutPath, branch_
 }
 
 // TODO: Do we want the diff file to be configurable?
-fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
+fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff, comments: &Comments) -> R<()> {
   println!("Generating diff files...");
 
   let write_start = Instant::now();
@@ -380,6 +380,22 @@ fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
       println!("Creating {}", &diff_file_name);
       let buf: &[u8]= d.contents.as_ref();
       f.write_all(buf).unwrap(); // TODO: Do we want to wrap this error?
+
+      if !comments.is_empty() {
+        let comment_file_name = format!("{}.comment", d.file_name);
+        let comment_file = Path::new(checkout_path).join(&comment_file_name);
+
+        let comments_json = CommentsJson::grouped_by_line(comments.clone());
+        match serde_json::to_string_pretty(&comments_json) {
+          Ok(contents) => {
+            let mut cf = File::create(&comment_file).unwrap(); // TODO: Do we want to wrap this error?
+            println!("Creating {}", &comment_file_name);
+            let buf: &[u8]= contents.as_ref();
+            cf.write_all(buf).unwrap(); // TODO: Do we want to wrap this error?
+          },
+          Err(error) => eprintln!("Could not created comment file {}: {}", comment_file.to_string_lossy(), error)
+        }
+      }
   });
 
   let time_taken = write_start.elapsed().as_millis();

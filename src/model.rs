@@ -1,11 +1,15 @@
 use std::collections::HashSet;
 use std::ffi::OsStr;
+use std::os::unix::prelude::OsStringExt;
 use std::path::{PathBuf, Path};
 use std::fmt::{self, Display};
 use std::error::Error;
 use tokio::task::JoinHandle;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
+use std::collections::HashMap;
+use crate::tools::group_by;
+
 
 pub type R<T> = Result<T, PursError>;
 
@@ -570,6 +574,38 @@ impl From<url::Url> for Url {
 pub struct CommentJson {
   pub user_name: String,
   pub user_icon: String,
+  pub link: String,
   pub line: u64,
-  pub link: String
+}
+
+#[derive(Serialize)]
+pub struct CommentsJson {
+  pub line: u64,
+  pub comments: Vec<CommentJson>
+}
+
+impl CommentsJson {
+  pub fn grouped_by_line(comments: Comments) -> Vec<CommentsJson> {
+      let comments_with_lines = comments.comments.into_iter().filter_map(|c|{
+          c.line.map(|cl|{
+            CommentJson {
+              user_name: c.author.name,
+              user_icon: c.author.gravatar.0,
+              link: c.comment_url.0,
+              line: cl.0
+            }
+          })
+      }).collect::<Vec<_>>();
+
+      let map: HashMap<u64, Vec<CommentJson>> = group_by(comments_with_lines, |v| v.line);
+
+      let comments_json = map.into_iter().map(|(k, v)|{
+        CommentsJson {
+          line: k,
+          comments: v
+        }
+      }).collect();
+
+      comments_json
+  }
 }
