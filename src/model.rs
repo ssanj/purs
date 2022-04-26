@@ -585,6 +585,7 @@ pub struct CommentJson {
   pub user_icon: String,
   pub link: String,
   pub line: u64,
+  pub body: String,
   pub file_name: String,
 }
 
@@ -610,6 +611,7 @@ impl CommentJson {
             user_icon: c.author.gravatar.0,
             link: c.comment_url.0,
             line: cl.0,
+            body: c.body.clone(),
             file_name: c.file_name.0
           }
         })
