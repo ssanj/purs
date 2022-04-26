@@ -28,7 +28,7 @@ pub struct PullRequest {
     pub head_sha: String,
     pub base_sha: String,
     pub reviews: Reviews,
-    pub comments: Vec<Comments>,
+    pub comments: Comments,
     pub diffs: PullRequestDiff,
     pub draft: Option<bool>,
     pub created_at: Option<DateTime<Utc>>,
@@ -46,7 +46,7 @@ pub struct ValidatedPullRequest {
     pub head_sha: String,
     pub base_sha: String,
     pub reviews: Reviews,
-    pub comments: Vec<Comments>,
+    pub comments: Comments,
     pub diffs: PullRequestDiff,
     pub draft: bool,
     pub created_at: Option<DateTime<Utc>>,
@@ -56,7 +56,7 @@ pub struct ValidatedPullRequest {
 impl fmt::Display for ValidatedPullRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repo_name = &self.config_owner_repo.1.0;
-        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.reviews.count(), self.comments.len(), repo_name)
+        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.reviews.count(), self.comments.count(), repo_name)
     }
 }
 
@@ -67,7 +67,7 @@ pub struct PullRequestDiff(pub Vec<GitDiff>);
 impl fmt::Display for PullRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repo_name = &self.config_owner_repo.1.0;
-        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.reviews.count(), self.comments.len(), repo_name)
+        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.reviews.count(), self.comments.count(), repo_name)
     }
 }
 
@@ -184,7 +184,7 @@ pub struct AsyncPullRequestParts {
     pub owner_repo: OwnerRepo,
     pub pull: octocrab::models::pulls::PullRequest,
     pub reviews_handle: JoinHandle<R<Reviews>>,
-    pub comments_handle: JoinHandle<R<Vec<Comments>>>,
+    pub comments_handle: JoinHandle<R<Comments>>,
     pub diffs_handle: JoinHandle<R<PullRequestDiff>>
 }
 
@@ -536,7 +536,6 @@ impl FileName {
 
 #[derive(Debug, Clone)]
 pub struct Comments {
-  pub file_name: FileName,
   pub comments: Vec<Comment>
 }
 
@@ -619,7 +618,7 @@ impl CommentJson {
     }).collect::<Vec<_>>();
 
   let file_comments: HashMap<String, Vec<CommentJson>> =
-    group_by(comments_with_lines, |v| v.file_name);
+    group_by(comments_with_lines, |v| v.file_name.clone());
 
   file_comments
     .into_iter()
@@ -633,13 +632,13 @@ impl CommentJson {
           .map(|(line, comment_json)| {
               LineCommentsJson {
                 line,
-                file_name,
+                file_name: file_name.clone(),
                 comments: comment_json
               }
           }).collect();
 
       FileCommentsJson {
-        file_name,
+        file_name: file_name.clone(),
         comments: line_comments_json
       }
     }).collect()

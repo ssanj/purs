@@ -742,7 +742,7 @@ async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u6
 }
 
 
-async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64) -> R<Vec<Comments>> {
+async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64) -> R<Comments> {
     let comments =
         octocrab
         .pulls(owner.0.to_owned(), repo.0.to_owned())
@@ -766,22 +766,14 @@ async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64)
           author,
           file_name
         }
-      });
+      }).collect();
 
-    let comments_by_file_name =
-      group_by(comments, |c: &Comment| c.file_name.clone());
 
-    let comments =
-      comments_by_file_name
-        .into_iter()
-        .map(|(file_name, comments)|{
-          Comments {
-            file_name,
-            comments
-          }
-        }).collect();
-
-    Ok(comments)
+    Ok(
+      Comments {
+        comments
+      }
+    )
 }
 
 
