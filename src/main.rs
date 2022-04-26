@@ -17,7 +17,6 @@ use unidiff::PatchSet;
 use std::time::Instant;
 use futures::stream::{self, StreamExt};
 use tui_app::render_tui;
-use tools::group_by;
 
 mod model;
 mod user_dir;
@@ -408,17 +407,17 @@ fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
 
 fn write_comment_files(checkout_path: &str, comments: &Comments) -> R<()> {
   if !comments.is_empty() {
-    println!("Generating diff files...");
+    println!("Generating comment files...");
 
     let write_start = Instant::now();
 
     let file_comments_json = CommentJson::grouped_by_line(comments.clone());
 
-    file_comments_json.into_iter().for_each(|fcj|{
-      let comment_file_name = format!("{}.comment", fcj.file_name);
+    file_comments_json.into_iter().for_each(|file_comments_json|{
+      let comment_file_name = format!("{}.comment", file_comments_json.file_name);
       let comment_file = Path::new(checkout_path).join(&comment_file_name);
 
-      match serde_json::to_string_pretty(&fcj) {
+      match serde_json::to_string_pretty(&file_comments_json) {
         Ok(contents) => {
           let mut cf = File::create(&comment_file).unwrap(); // TODO: Do we want to wrap this error?
           println!("Creating {}", &comment_file_name);
