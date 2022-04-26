@@ -579,7 +579,7 @@ impl From<url::Url> for Url {
 }
 
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct CommentJson {
   pub user_name: String,
   pub user_icon: String,
@@ -589,14 +589,14 @@ pub struct CommentJson {
   pub file_name: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct LineCommentsJson {
   pub line: u64,
   pub file_name: String,
   pub comments: Vec<CommentJson>
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct FileCommentsJson {
   pub file_name: String,
   pub comments: Vec<LineCommentsJson>
@@ -644,3 +644,6 @@ impl CommentJson {
     }).collect()
   }
 }
+
+#[cfg(test)]
+mod tests;
