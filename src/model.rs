@@ -4,6 +4,7 @@ use std::os::unix::prelude::OsStringExt;
 use std::path::{PathBuf, Path};
 use std::fmt::{self, Display};
 use std::error::Error;
+use tokio::io::AsyncBufReadExt;
 use tokio::task::JoinHandle;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
@@ -27,7 +28,7 @@ pub struct PullRequest {
     pub head_sha: String,
     pub base_sha: String,
     pub reviews: Reviews,
-    pub comments: Comments,
+    pub comments: Vec<Comments>,
     pub diffs: PullRequestDiff,
     pub draft: Option<bool>,
     pub created_at: Option<DateTime<Utc>>,
@@ -45,7 +46,7 @@ pub struct ValidatedPullRequest {
     pub head_sha: String,
     pub base_sha: String,
     pub reviews: Reviews,
-    pub comments: Comments,
+    pub comments: Vec<Comments>,
     pub diffs: PullRequestDiff,
     pub draft: bool,
     pub created_at: Option<DateTime<Utc>>,
@@ -55,7 +56,7 @@ pub struct ValidatedPullRequest {
 impl fmt::Display for ValidatedPullRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repo_name = &self.config_owner_repo.1.0;
-        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.reviews.count(), self.comments.count(), repo_name)
+        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.reviews.count(), self.comments.len(), repo_name)
     }
 }
 
@@ -66,7 +67,7 @@ pub struct PullRequestDiff(pub Vec<GitDiff>);
 impl fmt::Display for PullRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let repo_name = &self.config_owner_repo.1.0;
-        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.reviews.count(), self.comments.count(), repo_name)
+        write!(f, "{}, PR#{} ({}🔍) ({}💬) [{}]", self.title, self.pr_number, self.reviews.count(), self.comments.len(), repo_name)
     }
 }
 
@@ -183,7 +184,7 @@ pub struct AsyncPullRequestParts {
     pub owner_repo: OwnerRepo,
     pub pull: octocrab::models::pulls::PullRequest,
     pub reviews_handle: JoinHandle<R<Reviews>>,
-    pub comments_handle: JoinHandle<R<Comments>>,
+    pub comments_handle: JoinHandle<R<Vec<Comments>>>,
     pub diffs_handle: JoinHandle<R<PullRequestDiff>>
 }
 
@@ -519,12 +520,23 @@ pub struct Comment {
   pub author: User,
   pub comment_url: Url,
   pub line: Option<LineNumber>,
+  pub file_name: FileName,
   pub in_reply_to_id: Option<CommentId>
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct FileName(String);
+
+impl FileName {
+  pub fn new(file_name: String) -> Self {
+    FileName(file_name)
+  }
 }
 
 
 #[derive(Debug, Clone)]
 pub struct Comments {
+  pub file_name: FileName,
   pub comments: Vec<Comment>
 }
 
@@ -576,36 +588,60 @@ pub struct CommentJson {
   pub user_icon: String,
   pub link: String,
   pub line: u64,
+  pub file_name: String,
 }
 
 #[derive(Serialize)]
-pub struct CommentsJson {
+pub struct LineCommentsJson {
   pub line: u64,
+  pub file_name: String,
   pub comments: Vec<CommentJson>
 }
 
-impl CommentsJson {
-  pub fn grouped_by_line(comments: Comments) -> Vec<CommentsJson> {
-      let comments_with_lines = comments.comments.into_iter().filter_map(|c|{
-          c.line.map(|cl|{
-            CommentJson {
-              user_name: c.author.name,
-              user_icon: c.author.gravatar.0,
-              link: c.comment_url.0,
-              line: cl.0
-            }
-          })
-      }).collect::<Vec<_>>();
+#[derive(Serialize)]
+pub struct FileCommentsJson {
+  pub file_name: String,
+  pub comments: Vec<LineCommentsJson>
+}
 
-      let map: HashMap<u64, Vec<CommentJson>> = group_by(comments_with_lines, |v| v.line);
+impl CommentJson {
+  pub fn grouped_by_line(comments: Comments) -> Vec<FileCommentsJson> {
+    let comments_with_lines = comments.comments.into_iter().filter_map(|c|{
+        c.line.map(|cl|{
+          CommentJson {
+            user_name: c.author.name,
+            user_icon: c.author.gravatar.0,
+            link: c.comment_url.0,
+            line: cl.0,
+            file_name: c.file_name.0
+          }
+        })
+    }).collect::<Vec<_>>();
 
-      let comments_json = map.into_iter().map(|(k, v)|{
-        CommentsJson {
-          line: k,
-          comments: v
-        }
-      }).collect();
+  let file_comments: HashMap<String, Vec<CommentJson>> =
+    group_by(comments_with_lines, |v| v.file_name);
 
-      comments_json
+  file_comments
+    .into_iter()
+    .map(|(file_name, comments_in_file)| {
+      let lined_comment_json: HashMap<u64, Vec<CommentJson>> =
+        group_by(comments_in_file, |c| c.line);
+
+      let line_comments_json: Vec<LineCommentsJson> =
+        lined_comment_json
+          .into_iter()
+          .map(|(line, comment_json)| {
+              LineCommentsJson {
+                line,
+                file_name,
+                comments: comment_json
+              }
+          }).collect();
+
+      FileCommentsJson {
+        file_name,
+        comments: line_comments_json
+      }
+    }).collect()
   }
 }

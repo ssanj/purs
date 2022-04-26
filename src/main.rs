@@ -17,6 +17,7 @@ use unidiff::PatchSet;
 use std::time::Instant;
 use futures::stream::{self, StreamExt};
 use tui_app::render_tui;
+use tools::group_by;
 
 mod model;
 mod user_dir;
@@ -237,7 +238,8 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
         let branch_name = pr.branch_name;
 
         clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
-        write_diff_files(checkout_path.as_ref(), &pr.diffs, &pr.comments)?;
+        write_diff_files(checkout_path.as_ref(), &pr.diffs)?;
+        write_comment_files(checkout_path.as_ref(), &pr.comments)?;
 
         match &config.script {
           Some(script) => {
@@ -361,7 +363,7 @@ fn clone_branch(ssh_url: GitRepoSshUrl, checkout_path: RepoCheckoutPath, branch_
 }
 
 // TODO: Do we want the diff file to be configurable?
-fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff, comments: &Comments) -> R<()> {
+fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
   println!("Generating diff files...");
 
   let write_start = Instant::now();
@@ -381,25 +383,55 @@ fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff, comments: &Com
       let buf: &[u8]= d.contents.as_ref();
       f.write_all(buf).unwrap(); // TODO: Do we want to wrap this error?
 
-      if !comments.is_empty() {
-        let comment_file_name = format!("{}.comment", d.file_name);
-        let comment_file = Path::new(checkout_path).join(&comment_file_name);
+      // if !comments.is_empty() {
+      //   let comment_file_name = format!("{}.comment", d.file_name);
+      //   let comment_file = Path::new(checkout_path).join(&comment_file_name);
 
-        let comments_json = CommentsJson::grouped_by_line(comments.clone());
-        match serde_json::to_string_pretty(&comments_json) {
-          Ok(contents) => {
-            let mut cf = File::create(&comment_file).unwrap(); // TODO: Do we want to wrap this error?
-            println!("Creating {}", &comment_file_name);
-            let buf: &[u8]= contents.as_ref();
-            cf.write_all(buf).unwrap(); // TODO: Do we want to wrap this error?
-          },
-          Err(error) => eprintln!("Could not created comment file {}: {}", comment_file.to_string_lossy(), error)
-        }
-      }
+      //   let comments_json = CommentJson::grouped_by_line(comments.clone());
+      //   match serde_json::to_string_pretty(&comments_json) {
+      //     Ok(contents) => {
+      //       let mut cf = File::create(&comment_file).unwrap(); // TODO: Do we want to wrap this error?
+      //       println!("Creating {}", &comment_file_name);
+      //       let buf: &[u8]= contents.as_ref();
+      //       cf.write_all(buf).unwrap(); // TODO: Do we want to wrap this error?
+      //     },
+      //     Err(error) => eprintln!("Could not created comment file {}: {}", comment_file.to_string_lossy(), error)
+      //   }
+      // }
   });
 
   let time_taken = write_start.elapsed().as_millis();
   println!("Writing diff files took {} ms", time_taken);
+
+  Ok(())
+}
+
+fn write_comment_files(checkout_path: &str, comments: &Comments) -> R<()> {
+  if !comments.is_empty() {
+    println!("Generating diff files...");
+
+    let write_start = Instant::now();
+
+    let file_comments_json = CommentJson::grouped_by_line(comments.clone());
+
+    file_comments_json.into_iter().for_each(|fcj|{
+      let comment_file_name = format!("{}.comment", fcj.file_name);
+      let comment_file = Path::new(checkout_path).join(&comment_file_name);
+
+      match serde_json::to_string_pretty(&fcj) {
+        Ok(contents) => {
+          let mut cf = File::create(&comment_file).unwrap(); // TODO: Do we want to wrap this error?
+          println!("Creating {}", &comment_file_name);
+          let buf: &[u8]= contents.as_ref();
+          cf.write_all(buf).unwrap(); // TODO: Do we want to wrap this error?
+        },
+        Err(error) => eprintln!("Could not created comment file {}: {}", comment_file.to_string_lossy(), error)
+      }
+    });
+
+    let time_taken = write_start.elapsed().as_millis();
+    println!("Writing comment files took {} ms", time_taken);
+  }
 
   Ok(())
 }
@@ -710,7 +742,7 @@ async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u6
 }
 
 
-async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64) -> R<Comments> {
+async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64) -> R<Vec<Comments>> {
     let comments =
         octocrab
         .pulls(owner.0.to_owned(), repo.0.to_owned())
@@ -722,6 +754,7 @@ async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64)
       comments.into_iter().map(|c| {
 
         let author = User::new(c.user.login, Url::from(c.user.avatar_url));
+        let file_name = FileName::new(c.path);
 
         Comment {
           comment_id: CommentId::new(c.id.0),
@@ -730,16 +763,25 @@ async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64)
           line: c.line.map(LineNumber::new),
           in_reply_to_id: c.in_reply_to_id.map(CommentId::new),
           comment_url: Url::new(c.html_url.into()),
-          author
+          author,
+          file_name
         }
-      }).collect();
+      });
 
+    let comments_by_file_name =
+      group_by(comments, |c: &Comment| c.file_name.clone());
 
-    Ok(
-      Comments {
-        comments
-      }
-    )
+    let comments =
+      comments_by_file_name
+        .into_iter()
+        .map(|(file_name, comments)|{
+          Comments {
+            file_name,
+            comments
+          }
+        }).collect();
+
+    Ok(comments)
 }
 
 
