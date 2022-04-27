@@ -579,7 +579,7 @@ impl From<url::Url> for Url {
 }
 
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, PartialEq)]
 pub struct CommentJson {
   pub user_name: String,
   pub user_icon: String,
@@ -589,14 +589,14 @@ pub struct CommentJson {
   pub file_name: String,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, PartialEq)]
 pub struct LineCommentsJson {
   pub line: u64,
   pub file_name: String,
   pub comments: Vec<CommentJson>
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, PartialEq)]
 pub struct FileCommentsJson {
   pub file_name: String,
   pub comments: Vec<LineCommentsJson>
