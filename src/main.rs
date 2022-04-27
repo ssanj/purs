@@ -462,6 +462,7 @@ fn get_extract_path(config: &Config, pull: &ValidatedPullRequest) -> R<String> {
         config.working_dir.to_string(),
         repo_name.to_string(),
         branch_name.to_string(),
+        pull.pr_number.to_string(),
         pull.head_sha.clone()
       ].join(&separator);
 
