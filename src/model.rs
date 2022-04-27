@@ -593,13 +593,13 @@ pub struct CommentJson {
 pub struct LineCommentsJson {
   pub line: u64,
   pub file_name: String,
-  pub comments: Vec<CommentJson>
+  pub file_line_comments: Vec<CommentJson>
 }
 
 #[derive(Serialize, Debug, PartialEq)]
 pub struct FileCommentsJson {
   pub file_name: String,
-  pub comments: Vec<LineCommentsJson>
+  pub file_comments: Vec<LineCommentsJson>
 }
 
 impl CommentJson {
@@ -633,13 +633,13 @@ impl CommentJson {
               LineCommentsJson {
                 line,
                 file_name: file_name.clone(),
-                comments: comment_json
+                file_line_comments: comment_json
               }
           }).collect();
 
       FileCommentsJson {
         file_name: file_name.clone(),
-        comments: line_comments_json
+        file_comments: line_comments_json
       }
     }).collect()
   }

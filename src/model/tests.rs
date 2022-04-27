@@ -125,7 +125,7 @@ fn comment_json_grouped_by_line() {
     LineCommentsJson {
       line: 100,
       file_name: "filename1".to_owned(),
-      comments:
+      file_line_comments:
         vec![
           expected_comment_json1,
           expected_comment_json3,
@@ -136,7 +136,7 @@ fn comment_json_grouped_by_line() {
     LineCommentsJson {
       line: 150,
       file_name: "filename2".to_owned(),
-      comments:
+      file_line_comments:
         vec![
           expected_comment_json2,
         ]
@@ -146,7 +146,7 @@ fn comment_json_grouped_by_line() {
     LineCommentsJson {
       line: 30,
       file_name: "filename3".to_owned(),
-      comments:
+      file_line_comments:
         vec![
           expected_comment_json5,
         ]
@@ -157,15 +157,15 @@ fn comment_json_grouped_by_line() {
     vec![
       FileCommentsJson {
         file_name: "filename1".to_owned(),
-        comments: vec![expected_line_comments_file1]
+        file_comments: vec![expected_line_comments_file1]
       },
       FileCommentsJson {
         file_name: "filename2".to_owned(),
-        comments: vec![expected_line_comments_file2]
+        file_comments: vec![expected_line_comments_file2]
       },
       FileCommentsJson {
         file_name: "filename3".to_owned(),
-        comments: vec![expected_line_comments_file3]
+        file_comments: vec![expected_line_comments_file3]
       },
     ];
 
