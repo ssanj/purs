@@ -749,6 +749,7 @@ async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64)
           comment_id: CommentId::new(c.id.0),
           diff_hunk: c.diff_hunk,
           body: c.body,
+          markdown_body: None, //this will be filled only for the selected PR's comment
           line: c.line.map(LineNumber::new),
           in_reply_to_id: c.in_reply_to_id.map(CommentId::new),
           comment_url: Url::new(c.html_url.into()),

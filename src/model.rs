@@ -518,12 +518,22 @@ impl LineNumber {
   }
 }
 
+#[derive(Debug, Clone)]
+pub struct Markdown(String);
+
+impl Markdown {
+  pub fn new(body: String) -> Self {
+    Markdown(body)
+  }
+}
+
 
 #[derive(Debug, Clone)]
 pub struct Comment {
   pub comment_id: CommentId,
   pub diff_hunk: String,
   pub body: String,
+  pub markdown_body: Option<Markdown>,
   pub author: User,
   pub comment_url: Url,
   pub line: Option<LineNumber>,
