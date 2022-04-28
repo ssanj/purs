@@ -890,12 +890,14 @@ name = "purs"
 version = "0.2.2"
 dependencies = [
  "ansi_term",
+ "base64 0.13.0",
  "chrono",
  "clap",
  "crossterm",
  "dirs",
  "futures",
  "octocrab",
+ "reqwest",
  "serde",
  "serde_json",
  "tokio",

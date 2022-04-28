@@ -1,10 +1,11 @@
-use futures::FutureExt;
+use futures::{FutureExt, TryFutureExt};
 use futures::future::try_join_all;
 use octocrab::{self, OctocrabBuilder, Octocrab};
 use octocrab::params;
 use octocrab::models::pulls::ReviewState as GHReviewState;
 use crate::model::*;
 use crate::user_dir::*;
+use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
@@ -17,6 +18,8 @@ use unidiff::PatchSet;
 use std::time::Instant;
 use futures::stream::{self, StreamExt};
 use tui_app::render_tui;
+use reqwest;
+use base64;
 
 mod model;
 mod user_dir;
@@ -238,8 +241,9 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
 
         clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
         write_diff_files(checkout_path.as_ref(), &pr.diffs)?;
-        write_comment_files(checkout_path.as_ref(), &pr.comments)?;
-
+        let avatar_hash = get_avatars(&pr.comments).await?;
+        println!("avatar_hash keys: {:?}", avatar_hash.keys().collect::<Vec<_>>());
+        write_comment_files(checkout_path.as_ref(), &pr.comments, avatar_hash)?;
         match &config.script {
           Some(script) => {
             script_to_run(script, &checkout_path)?
@@ -381,22 +385,6 @@ fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
       println!("Creating {}", &diff_file_name);
       let buf: &[u8]= d.contents.as_ref();
       f.write_all(buf).unwrap(); // TODO: Do we want to wrap this error?
-
-      // if !comments.is_empty() {
-      //   let comment_file_name = format!("{}.comment", d.file_name);
-      //   let comment_file = Path::new(checkout_path).join(&comment_file_name);
-
-      //   let comments_json = CommentJson::grouped_by_line(comments.clone());
-      //   match serde_json::to_string_pretty(&comments_json) {
-      //     Ok(contents) => {
-      //       let mut cf = File::create(&comment_file).unwrap(); // TODO: Do we want to wrap this error?
-      //       println!("Creating {}", &comment_file_name);
-      //       let buf: &[u8]= contents.as_ref();
-      //       cf.write_all(buf).unwrap(); // TODO: Do we want to wrap this error?
-      //     },
-      //     Err(error) => eprintln!("Could not created comment file {}: {}", comment_file.to_string_lossy(), error)
-      //   }
-      // }
   });
 
   let time_taken = write_start.elapsed().as_millis();
@@ -405,13 +393,13 @@ fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
   Ok(())
 }
 
-fn write_comment_files(checkout_path: &str, comments: &Comments) -> R<()> {
+fn write_comment_files(checkout_path: &str, comments: &Comments, avatar_hash: HashMap<Url, Base64Encoded>) -> R<()> {
   if !comments.is_empty() {
     println!("Generating comment files...");
 
     let write_start = Instant::now();
 
-    let file_comments_json = CommentJson::grouped_by_line(comments.clone());
+    let file_comments_json = CommentJson::grouped_by_line_2(comments.clone(), avatar_hash);
 
     file_comments_json.into_iter().for_each(|file_comments_json|{
       let comment_file_name = format!("{}.comment", file_comments_json.file_name);
@@ -742,6 +730,8 @@ async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u6
 }
 
 
+
+
 async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64) -> R<Comments> {
     let comments =
         octocrab
@@ -752,7 +742,6 @@ async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64)
 
     let comments =
       comments.into_iter().map(|c| {
-
         let author = User::new(c.user.login, Url::from(c.user.avatar_url));
         let file_name = FileName::new(c.path);
 
@@ -831,3 +820,48 @@ pub fn print_info(message: String) {
   let coloured_info = Colour::Green.paint(message);
   println!("{}", coloured_info)
 }
+
+
+async fn get_avatars(comments: &Comments) -> R<HashMap<Url, Base64Encoded>> {
+  let mut unique_gravatar_urls: HashSet<Url> = HashSet::new();
+
+  comments.comments.iter().for_each(|c| {
+    unique_gravatar_urls.insert(c.author.clone().gravatar_url());
+  });
+
+  println!("comments urls: {:?}", unique_gravatar_urls);
+
+
+  let url_data_handles = unique_gravatar_urls.iter().map(|u| {
+    tokio::task::spawn(get_url_data(u.clone()))
+  });
+
+  //TODO: Use filter_map to remove any errors
+  let url_data_results: HashMap<Url, Base64Encoded> =
+    try_join_all(url_data_handles)
+    .await
+    .map_err( PursError::from)?
+    .iter()
+    .filter_map(|r| r.as_ref().ok())
+    .map(|(u, d)| {
+      let base64_encoded = base64::encode_config(d, base64::STANDARD);
+      (u.clone(), Base64Encoded::new(format!("data:image/png;base64,{}", base64_encoded)))
+    })
+    .collect();
+
+    Ok(url_data_results)
+}
+
+async fn get_url_data(url: Url) -> R<(Url, Vec<u8>)> {
+    println!("downloading data for url: {:?}", url);
+    let data =
+      reqwest::get(String::from(&url))
+      .await
+      .map_err(PursError::from)?
+      .bytes()
+      .await
+      .map_err(PursError::from)?;
+
+  Ok((url, data.to_vec()))
+}
+

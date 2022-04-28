@@ -3,6 +3,7 @@ use std::ffi::OsStr;
 use std::path::{PathBuf, Path};
 use std::fmt::{self, Display};
 use std::error::Error;
+use serde_json::error;
 use tokio::task::JoinHandle;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
@@ -244,7 +245,8 @@ pub enum PursError {
     MultipleErrors(Vec<PursError>),
     UserError(UserInputError),
     ScriptExecutionError(ScriptErrorType),
-    TUIError(NestedError)
+    TUIError(NestedError),
+    ReqwestError(NestedError)
 }
 
 impl Display for PursError {
@@ -259,6 +261,7 @@ impl Display for PursError {
             PursError::UserError(error) => write!(f, "PursError.UserError: {}", error),
             PursError::ScriptExecutionError(error) => write!(f, "PursError.ScriptExecutionError: {}", error),
             PursError::TUIError(error) => write!(f, "PursError.TUIError: {}", error),
+            PursError::ReqwestError(error) => write!(f, "PursError.ReqwestError: {}", error),
         }
     }
 }
@@ -288,6 +291,12 @@ impl From<unidiff::Error> for PursError {
 impl From<tokio::task::JoinError> for PursError {
   fn from(error: tokio::task::JoinError) -> Self {
     PursError::JoinError(NestedError::from(error))
+  }
+}
+
+impl From<reqwest::Error> for PursError {
+  fn from(error: reqwest::Error) -> Self {
+      PursError::ReqwestError(NestedError::from(error))
   }
 }
 
@@ -547,7 +556,7 @@ impl Comments {
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Url(String);
 
 impl Url {
@@ -556,6 +565,14 @@ impl Url {
   }
 }
 
+#[derive(Debug, Clone)]
+pub struct Base64Encoded(String);
+
+impl Base64Encoded {
+  pub fn new(value: String) -> Self {
+    Base64Encoded(value)
+  }
+}
 
 #[derive(Debug, Clone)]
 pub struct User {
@@ -567,16 +584,29 @@ impl User {
   pub fn new(name: String, gravatar: Url) -> Self {
     User {
       name,
-      gravatar
+      gravatar,
     }
   }
+
+  pub fn gravatar_url(self) -> Url {
+    self.gravatar
+  }
 }
+
+
 
 impl From<url::Url> for Url {
   fn from(url: url::Url) -> Self {
       Url::new(url.into())
   }
 }
+
+impl From<&Url> for String {
+  fn from(url: &Url) -> Self {
+      url.0.clone()
+  }
+}
+
 
 
 #[derive(Serialize, Debug, PartialEq)]
@@ -609,6 +639,49 @@ impl CommentJson {
           CommentJson {
             user_name: c.author.name,
             user_icon: c.author.gravatar.0,
+            link: c.comment_url.0,
+            line: cl.0,
+            body: c.body.clone(),
+            file_name: c.file_name.0
+          }
+        })
+    }).collect::<Vec<_>>();
+
+  let file_comments: HashMap<String, Vec<CommentJson>> =
+    group_by(comments_with_lines, |v| v.file_name.clone());
+
+  file_comments
+    .into_iter()
+    .map(|(file_name, comments_in_file)| {
+      let lined_comment_json: HashMap<u64, Vec<CommentJson>> =
+        group_by(comments_in_file, |c| c.line);
+
+      let line_comments_json: Vec<LineCommentsJson> =
+        lined_comment_json
+          .into_iter()
+          .map(|(line, comment_json)| {
+              LineCommentsJson {
+                line,
+                file_name: file_name.clone(),
+                file_line_comments: comment_json
+              }
+          }).collect();
+
+      FileCommentsJson {
+        file_name: file_name.clone(),
+        file_comments: line_comments_json
+      }
+    }).collect()
+  }
+
+
+  pub fn grouped_by_line_2(comments: Comments, avatars: HashMap<Url, Base64Encoded>) -> Vec<FileCommentsJson> {
+    let comments_with_lines = comments.comments.into_iter().filter_map(|c|{
+        c.line.map(|cl|{
+          let x = avatars.get(&c.author.gravatar);
+          CommentJson {
+            user_name: c.author.name,
+            user_icon: x.clone().map(|s| s.clone().0).unwrap_or("-".to_owned()), //TODO: Have a better default
             link: c.comment_url.0,
             line: cl.0,
             body: c.body.clone(),
