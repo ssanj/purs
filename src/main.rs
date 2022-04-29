@@ -186,7 +186,7 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
         .map_err(PursError::from)?;
 
     let pr_start = Instant::now();
-    let pull_requests_raw: Vec<PullRequest> = get_prs3(config, octocrab).await?;
+    let pull_requests_raw: Vec<PullRequest> = get_prs3(config, octocrab.clone()).await?;
 
     // Remove any invalid PRs without a clonable url    let pull_requests =
     let pull_requests=
@@ -243,7 +243,10 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
         write_diff_files(checkout_path.as_ref(), &pr.diffs)?;
         let avatar_hash = get_avatars(&pr.comments).await?;
         println!("avatar_hash keys: {:?}", avatar_hash.keys().collect::<Vec<_>>());
-        write_comment_files(checkout_path.as_ref(), &pr.comments, avatar_hash)?;
+        let rendered_comments =
+          render_markdown_comments(&octocrab,  &pr.comments).await?;
+
+        write_comment_files(checkout_path.as_ref(), &rendered_comments, avatar_hash)?;
         match &config.script {
           Some(script) => {
             script_to_run(script, &checkout_path)?
@@ -778,40 +781,6 @@ async fn get_pr_diffs2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64)
 }
 
 
-
-// fn get_dummy_prs() -> octocrab::Result<Vec<PullRequest>> {
-//     vec![
-//         PullRequest {
-//             title: "TITLE1".to_string(),
-//             pr_number: 100,
-//             ssh_url: Some("ssh1".to_string()),
-//             repo_name: Some("repo1".to_string()),
-//             branch_name: "branch1".to_string(),
-//             head_sha: "sha1".to_string(),
-//             base_sha: "base-sha1".to_string(),
-//         },
-//         PullRequest {
-//             title: "TITLE2".to_string(),
-//             pr_number: 200,
-//             ssh_url: Some("ssh2".to_string()),
-//             repo_name: Some("repo2".to_string()),
-//             branch_name: "branch2".to_string(),
-//             head_sha: "sha2".to_string(),
-//             base_sha: "base-sha2".to_string(),
-//         },
-//         PullRequest {
-//             title: "TITLE3".to_string(),
-//             pr_number: 300,
-//             ssh_url: Some("ssh3".to_string()),
-//             repo_name: Some("repo3".to_string()),
-//             branch_name: "branch3".to_string(),
-//             head_sha: "sha3".to_string(),
-//             base_sha: "base-sha3".to_string(),
-//         }
-//     ]
-
-// }
-
 pub fn print_error(message: String) {
   let coloured_error = Colour::Red.paint(format!("Error: {}", message));
   println!("{}", coloured_error)
@@ -830,6 +799,7 @@ async fn render_markdown_comments(octocrab: &Octocrab, comments: &Comments) -> R
   let handles = cs.comments.into_iter().map(|c|{
       tokio::task::spawn({
         render_markdown(octocrab.clone(), c.body.clone()).map(|r| {
+          // can we bimap? Why does this work and r.map doesn't because of a move?
          match r {
           Ok(value) => Ok((c, value)),
           Err(e) => Err(e)

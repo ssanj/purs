@@ -527,6 +527,11 @@ impl Markdown {
   }
 }
 
+impl Display for Markdown {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Comment {
@@ -635,6 +640,7 @@ pub struct CommentJson {
   pub link: String,
   pub line: u64,
   pub body: String,
+  pub body_md: Option<String>,
   pub file_name: String,
 }
 
@@ -652,46 +658,47 @@ pub struct FileCommentsJson {
 }
 
 impl CommentJson {
-  pub fn grouped_by_line(comments: Comments) -> Vec<FileCommentsJson> {
-    let comments_with_lines = comments.comments.into_iter().filter_map(|c|{
-        c.line.map(|cl|{
-          CommentJson {
-            user_name: c.author.name,
-            user_icon: c.author.gravatar.0,
-            link: c.comment_url.0,
-            line: cl.0,
-            body: c.body.clone(),
-            file_name: c.file_name.0
-          }
-        })
-    }).collect::<Vec<_>>();
+  // pub fn grouped_by_line(comments: Comments) -> Vec<FileCommentsJson> {
+  //   let comments_with_lines = comments.comments.into_iter().filter_map(|c|{
+  //       c.line.map(|cl|{
+  //         CommentJson {
+  //           user_name: c.author.name,
+  //           user_icon: c.author.gravatar.0,
+  //           link: c.comment_url.0,
+  //           line: cl.0,
+  //           body: c.body.clone(),
+  //           body: c.markdown_body
+  //           file_name: c.file_name.0
+  //         }
+  //       })
+  //   }).collect::<Vec<_>>();
 
-  let file_comments: HashMap<String, Vec<CommentJson>> =
-    group_by(comments_with_lines, |v| v.file_name.clone());
+  // let file_comments: HashMap<String, Vec<CommentJson>> =
+  //   group_by(comments_with_lines, |v| v.file_name.clone());
 
-  file_comments
-    .into_iter()
-    .map(|(file_name, comments_in_file)| {
-      let lined_comment_json: HashMap<u64, Vec<CommentJson>> =
-        group_by(comments_in_file, |c| c.line);
+  // file_comments
+  //   .into_iter()
+  //   .map(|(file_name, comments_in_file)| {
+  //     let lined_comment_json: HashMap<u64, Vec<CommentJson>> =
+  //       group_by(comments_in_file, |c| c.line);
 
-      let line_comments_json: Vec<LineCommentsJson> =
-        lined_comment_json
-          .into_iter()
-          .map(|(line, comment_json)| {
-              LineCommentsJson {
-                line,
-                file_name: file_name.clone(),
-                file_line_comments: comment_json
-              }
-          }).collect();
+  //     let line_comments_json: Vec<LineCommentsJson> =
+  //       lined_comment_json
+  //         .into_iter()
+  //         .map(|(line, comment_json)| {
+  //             LineCommentsJson {
+  //               line,
+  //               file_name: file_name.clone(),
+  //               file_line_comments: comment_json
+  //             }
+  //         }).collect();
 
-      FileCommentsJson {
-        file_name: file_name.clone(),
-        file_comments: line_comments_json
-      }
-    }).collect()
-  }
+  //     FileCommentsJson {
+  //       file_name: file_name.clone(),
+  //       file_comments: line_comments_json
+  //     }
+  //   }).collect()
+  // }
 
 
   pub fn grouped_by_line_2(comments: Comments, avatars: HashMap<Url, Base64Encoded>) -> Vec<FileCommentsJson> {
@@ -704,6 +711,7 @@ impl CommentJson {
             link: c.comment_url.0,
             line: cl.0,
             body: c.body.clone(),
+            body_md: c.markdown_body.clone().map(|md| md.to_string()),
             file_name: c.file_name.0
           }
         })

@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use crate::model::{Base64Encoded, Markdown};
+
 use super::{CommentJson, Comment, Comments, FileName, LineNumber, Url, User, CommentId, FileCommentsJson, LineCommentsJson};
 
 #[test]
@@ -60,7 +64,7 @@ fn comment_json_grouped_by_line() {
       comment_id: CommentId::new(1005),
       diff_hunk: "diff hunk5".to_owned(),
       body: "body5".to_owned(),
-      markdown_body: None,
+      markdown_body: Some(Markdown::new("**markdown**".to_owned())),
       author: User::new("user5".to_owned(), Url::new("https://sample.data/user5".to_owned())),
       comment_url: Url::new("https://sample.data/comment5".to_owned()),
       line: Some(LineNumber::new(30)),
@@ -80,7 +84,14 @@ fn comment_json_grouped_by_line() {
         ]
     };
 
-  let mut actual_result = CommentJson::grouped_by_line(comments);
+  let avatar_hash =
+    HashMap::from([
+      (Url::new("https://sample.data/user1".to_owned()), Base64Encoded::new("https://sample.data/user1".to_owned())),
+      (Url::new("https://sample.data/user2".to_owned()), Base64Encoded::new("https://sample.data/user2".to_owned())),
+      (Url::new("https://sample.data/user5".to_owned()), Base64Encoded::new("https://sample.data/user5".to_owned())),
+    ]);
+
+  let mut actual_result = CommentJson::grouped_by_line_2(comments, avatar_hash);
 
   let expected_comment_json1 =
     CommentJson {
@@ -89,6 +100,7 @@ fn comment_json_grouped_by_line() {
       link: "https://sample.data/comment1".to_owned(),
       line: 100,
       body: "body1".to_owned(),
+      body_md: None,
       file_name: "filename1".to_owned(),
     };
 
@@ -99,16 +111,18 @@ fn comment_json_grouped_by_line() {
       link: "https://sample.data/comment2".to_owned(),
       line: 150,
       body: "body2".to_owned(),
+      body_md: None,
       file_name: "filename2".to_owned(),
     };
 
   let expected_comment_json3 =
     CommentJson {
       user_name: "user3".to_owned(),
-      user_icon: "https://sample.data/user3".to_owned(),
+      user_icon: "-".to_owned(), // since this is not in the cache we get the default
       link: "https://sample.data/comment3".to_owned(),
       line: 100,
       body: "body3".to_owned(),
+      body_md: None,
       file_name: "filename1".to_owned(),
     };
 
@@ -121,6 +135,7 @@ fn comment_json_grouped_by_line() {
       link: "https://sample.data/comment5".to_owned(),
       line: 30,
       body: "body5".to_owned(),
+      body_md: Some("**markdown**".to_owned()), //since comment5 has markdown, we expect it to be output
       file_name: "filename3".to_owned(),
     };
 
