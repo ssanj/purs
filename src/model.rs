@@ -500,7 +500,7 @@ impl Reviews {
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CommentId(u64);
 
 impl CommentId {
@@ -539,6 +539,15 @@ pub struct Comment {
   pub line: Option<LineNumber>,
   pub file_name: FileName,
   pub in_reply_to_id: Option<CommentId>
+}
+
+impl Comment {
+  pub fn update_markdown_body(self, markdown_body: String) -> Self {
+    Comment {
+      markdown_body: Some(Markdown(markdown_body)),
+      ..self
+    }
+  }
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
