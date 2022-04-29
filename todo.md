@@ -24,4 +24,10 @@
   - Check out the PR to address review comments. (We don't want diffs and comments in this view)
 - Add a way to fold comments
 - Add a way to quickly jump to comments in a file
-- Covert the markdown content of comments to html via GH
+
+## Issues
+- The avatar content for each icon is large:
+  - The same icon data is repeated every time the same person comments
+  - The icon data is way too big to store in the JSON. Eg. 152K vs 5.1K file sizes with and without avatars
+  - Given that the same people will be generally commenting most of the time, could we download and locally link to the files instead? Something like a file cache?
+  - Alternatively could we store the avatars once for each person and then refer to that in each comment?
