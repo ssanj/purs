@@ -20,12 +20,14 @@ use futures::stream::{self, StreamExt};
 use tui_app::render_tui;
 use reqwest;
 use base64;
+use avatar::get_url_data;
 
 mod model;
 mod user_dir;
 mod console;
 mod tui_app;
 mod tools;
+mod avatar;
 
 #[tokio::main]
 async fn main() {
@@ -881,17 +883,3 @@ async fn get_avatars(comments: &Comments) -> R<HashMap<Url, Base64Encoded>> {
 
     Ok(url_data_results)
 }
-
-async fn get_url_data(url: Url) -> R<(Url, Vec<u8>)> {
-    println!("downloading data for url: {:?}", url);
-    let data =
-      reqwest::get(String::from(&url))
-      .await
-      .map_err(PursError::from)?
-      .bytes()
-      .await
-      .map_err(PursError::from)?;
-
-  Ok((url, data.to_vec()))
-}
-

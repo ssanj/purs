@@ -246,7 +246,8 @@ pub enum PursError {
     UserError(UserInputError),
     ScriptExecutionError(ScriptErrorType),
     TUIError(NestedError),
-    ReqwestError(NestedError)
+    ReqwestError(NestedError),
+    FileError(NestedError)
 }
 
 impl Display for PursError {
@@ -262,6 +263,7 @@ impl Display for PursError {
             PursError::ScriptExecutionError(error) => write!(f, "PursError.ScriptExecutionError: {}", error),
             PursError::TUIError(error) => write!(f, "PursError.TUIError: {}", error),
             PursError::ReqwestError(error) => write!(f, "PursError.ReqwestError: {}", error),
+            PursError::FileError(error) => write!(f, "PursError.FileError: {}", error),
         }
     }
 }
@@ -599,9 +601,19 @@ impl Base64Encoded {
 }
 
 #[derive(Debug, Clone)]
+pub struct UserId(u64);
+
+impl UserId {
+  pub fn new(id: u64) -> Self {
+    UserId(id)
+  }
+}
+
+#[derive(Debug, Clone)]
 pub struct User {
   name: String,
   gravatar: Url,
+  //userId: UserId
 }
 
 impl User {
@@ -742,6 +754,32 @@ impl CommentJson {
         file_comments: line_comments_json
       }
     }).collect()
+  }
+}
+
+#[derive(Debug, Clone)]
+pub struct AvatarCacheFile(UserId, PathBuf);
+
+impl AvatarCacheFile {
+  pub fn new(user_id: &UserId, path: String) -> Self {
+    AvatarCacheFile(user_id.clone(), PathBuf::from(path))
+  }
+
+  pub fn url(&self) -> Url {
+    let url_file = format!("file://{}", self.path().to_string_lossy().to_string());
+    let parse_result = url::Url::parse(&url_file);
+    Url::from(
+      //TODO: should we have some kind of error handling here?
+      parse_result
+        .expect(&format!("invalid url: {}", &url_file)))
+  }
+
+  pub fn path(&self) -> PathBuf {
+    let image = self.0.0;
+    let mut path_buf = self.1.clone();
+    path_buf.push(image.to_string());
+    path_buf.set_extension("png");
+    path_buf
   }
 }
 
