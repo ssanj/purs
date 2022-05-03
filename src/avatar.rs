@@ -1,5 +1,6 @@
+use futures::TryFutureExt;
 use reqwest;
-use crate::{model::{Url, PursError, R, NestedError}, AvatarCacheFile, UserId};
+use crate::{model::{Url, PursError, R, NestedError}, AvatarCacheFile, UserId, CacheFileStatus};
 use tokio::{io::{self, AsyncWriteExt}, fs::OpenOptions};
 use tokio::fs::File;
 
@@ -21,20 +22,28 @@ pub async fn get_or_create_avatar_file(user_id: &UserId, avatar_url: Url, path: 
   match does_cache_file_exist(&avatar_cache_file).await? {
     CacheFileStatus::Exists => Ok(avatar_cache_file.url()),
     CacheFileStatus::DoesNotExist => {
-      let (_, url_data) = get_url_data(avatar_url).await?;
-      let _ = save_avatar_data(&avatar_cache_file, url_data).await?;
-      //try and load the file again but don't fail if it's not found
-      match does_cache_file_exist(&avatar_cache_file).await? {
-        CacheFileStatus::Exists => Ok(avatar_cache_file.url()),
-        CacheFileStatus::DoesNotExist =>  Ok(default_avatar)
+      let downloaded_file =
+        get_url_data(avatar_url.clone()).and_then(|url_data|{
+          async {
+            save_avatar_data(&avatar_cache_file, url_data.1).await
+          }
+        }).await;
+
+      match downloaded_file {
+        Ok(_) => {
+          //try and load the file again but don't fail if it's not found
+          match does_cache_file_exist(&avatar_cache_file).await? {
+            CacheFileStatus::Exists => Ok(avatar_cache_file.url()),
+            CacheFileStatus::DoesNotExist =>  Ok(default_avatar)
+          }
+        },
+        Err(e) => {
+          eprint!("Could not download and save avatar {:?}:{}", avatar_url, e);
+          Ok(default_avatar)
+        }
       }
     }
   }
-}
-
-enum CacheFileStatus {
-  Exists,
-  DoesNotExist
 }
 
 pub async fn does_cache_file_exist(avatar_cache_file: &AvatarCacheFile) -> R<CacheFileStatus> {

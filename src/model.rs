@@ -3,7 +3,6 @@ use std::ffi::OsStr;
 use std::path::{PathBuf, Path};
 use std::fmt::{self, Display};
 use std::error::Error;
-use serde_json::error;
 use tokio::task::JoinHandle;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
@@ -215,7 +214,7 @@ pub struct NestedError(Box<dyn Error + Send + Sync>);
 
 impl Display for NestedError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-      write!(f, "{}", self)
+      write!(f, "{}", self.0)
     }
 }
 
@@ -781,6 +780,11 @@ impl AvatarCacheFile {
     path_buf.set_extension("png");
     path_buf
   }
+}
+
+pub enum CacheFileStatus {
+  Exists,
+  DoesNotExist
 }
 
 #[cfg(test)]
