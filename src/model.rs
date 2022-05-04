@@ -251,7 +251,7 @@ pub enum PursError {
     UrlParseError(NestedError),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum AvatarCreationErrorType {
   CouldNotDownloadAvatar(String),
   CouldNotSaveAvatar(String)
@@ -837,6 +837,7 @@ pub enum CacheFileType {
 }
 
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum CacheFileStatus {
   Exists,
   DoesNotExist
