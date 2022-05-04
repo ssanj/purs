@@ -80,3 +80,6 @@ pub async fn save_avatar_data(avatar_cache_file: &AvatarCacheFile, avatar_data: 
   Ok(())
 }
 
+
+#[cfg(test)]
+mod tests;
