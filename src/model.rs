@@ -246,7 +246,25 @@ pub enum PursError {
     ScriptExecutionError(ScriptErrorType),
     TUIError(NestedError),
     ReqwestError(NestedError),
-    FileError(NestedError)
+    FileError(NestedError),
+    AvatarCreationError(AvatarCreationErrorType),
+    UrlParseError(NestedError),
+}
+
+#[derive(Debug)]
+pub enum AvatarCreationErrorType {
+  CouldNotDownloadAvatar(String),
+  CouldNotSaveAvatar(String)
+}
+
+impl fmt::Display for AvatarCreationErrorType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      match self {
+        AvatarCreationErrorType::CouldNotDownloadAvatar(error) => write!(f, "Could not download avatar because: {}", error),
+        AvatarCreationErrorType::CouldNotSaveAvatar(error) => write!(f, "Could not save avatar because: {}", error)
+      }
+
+    }
 }
 
 impl Display for PursError {
@@ -263,6 +281,8 @@ impl Display for PursError {
             PursError::TUIError(error) => write!(f, "PursError.TUIError: {}", error),
             PursError::ReqwestError(error) => write!(f, "PursError.ReqwestError: {}", error),
             PursError::FileError(error) => write!(f, "PursError.FileError: {}", error),
+            PursError::AvatarCreationError(error) => write!(f, "PursError.AvatarCreationError: {}", error),
+            PursError::UrlParseError(error) => write!(f, "PursError.UrlParseError: {}", error),
         }
     }
 }
@@ -590,6 +610,12 @@ impl Url {
   }
 }
 
+impl fmt::Display for Url {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Base64Encoded(String);
 
@@ -606,6 +632,12 @@ impl UserId {
   pub fn new(id: u64) -> Self {
     UserId(id)
   }
+}
+
+impl fmt::Display for UserId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -757,30 +789,53 @@ impl CommentJson {
 }
 
 #[derive(Debug, Clone)]
+pub struct FileUrl(Url);
+
+impl FileUrl {
+  pub fn new(url: Url) -> Self {
+    FileUrl(url)
+  }
+}
+
+impl fmt::Display for FileUrl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0.0)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct AvatarCacheFile(UserId, PathBuf);
 
 impl AvatarCacheFile {
+
   pub fn new(user_id: &UserId, path: String) -> Self {
     AvatarCacheFile(user_id.clone(), PathBuf::from(path))
   }
 
-  pub fn url(&self) -> Url {
+  pub fn url(&self) -> R<FileUrl> {
     let url_file = format!("file://{}", self.path().to_string_lossy().to_string());
-    let parse_result = url::Url::parse(&url_file);
-    Url::from(
-      //TODO: should we have some kind of error handling here?
-      parse_result
-        .expect(&format!("invalid url: {}", &url_file)))
+
+    url::Url::parse(&url_file)
+      .map(|u| FileUrl::new(Url::from(u)))
+      .map_err(|e| PursError::UrlParseError(NestedError::from(e)))
   }
 
+
   pub fn path(&self) -> PathBuf {
-    let image = self.0.0;
+    let file_name = self.0.0;
     let mut path_buf = self.1.clone();
-    path_buf.push(image.to_string());
+    path_buf.push(file_name.to_string());
     path_buf.set_extension("png");
     path_buf
   }
 }
+
+#[derive(Debug, Clone)]
+pub enum CacheFileType {
+  UserIdType(UserId),
+  DefaultType
+}
+
 
 pub enum CacheFileStatus {
   Exists,

@@ -1,6 +1,6 @@
 use futures::TryFutureExt;
 use reqwest;
-use crate::{model::{Url, PursError, R, NestedError}, AvatarCacheFile, UserId, CacheFileStatus};
+use crate::{model::{Url, PursError, R, NestedError, AvatarCacheFile, UserId, CacheFileStatus, FileUrl, CacheFileType, AvatarCreationErrorType}};
 use tokio::{io::{self, AsyncWriteExt}, fs::OpenOptions};
 use tokio::fs::File;
 
@@ -17,30 +17,45 @@ pub async fn get_url_data(url: Url) -> R<(Url, Vec<u8>)> {
   Ok((url, data.to_vec()))
 }
 
-pub async fn get_or_create_avatar_file(user_id: &UserId, avatar_url: Url, path: String, default_avatar: Url) -> R<Url> {
-  let avatar_cache_file = AvatarCacheFile::new(user_id, path);
+pub async fn get_or_create_avatar_file(user_id: &UserId, avatar_url: &Url, path: &str) -> R<FileUrl> {
+  let avatar_cache_file = AvatarCacheFile::new(user_id, path.to_owned());
   match does_cache_file_exist(&avatar_cache_file).await? {
-    CacheFileStatus::Exists => Ok(avatar_cache_file.url()),
+    CacheFileStatus::Exists => avatar_cache_file.url(),
     CacheFileStatus::DoesNotExist => {
       let downloaded_file =
-        get_url_data(avatar_url.clone()).and_then(|url_data|{
-          async {
-            save_avatar_data(&avatar_cache_file, url_data.1).await
-          }
-        }).await;
+        get_url_data(avatar_url.clone())
+          .and_then(|url_data|{
+            async {
+              save_avatar_data(&avatar_cache_file, url_data.1).await
+            }
+          })
+          .await;
 
       match downloaded_file {
         Ok(_) => {
           //try and load the file again but don't fail if it's not found
           match does_cache_file_exist(&avatar_cache_file).await? {
-            CacheFileStatus::Exists => Ok(avatar_cache_file.url()),
-            CacheFileStatus::DoesNotExist =>  Ok(default_avatar)
+            CacheFileStatus::Exists => avatar_cache_file.url(),
+            CacheFileStatus::DoesNotExist =>
+              Err(
+                PursError::AvatarCreationError(
+                  AvatarCreationErrorType::CouldNotSaveAvatar(
+                    //TODO: Add user_id, path and avatar_url into a class and dump it Display
+                    format!("Could not save avatar for user_id:{}, path:{}, url:{}", user_id, path, avatar_url)
+                  )
+                )
+              )
           }
         },
-        Err(e) => {
-          eprint!("Could not download and save avatar {:?}:{}", avatar_url, e);
-          Ok(default_avatar)
-        }
+        Err(e) =>
+          Err(
+            PursError::AvatarCreationError(
+              AvatarCreationErrorType::CouldNotDownloadAvatar(
+                //TODO: Add user_id, path and avatar_url into a class and dump it in Display
+                e.to_string()
+              )
+            )
+          )
       }
     }
   }
