@@ -118,7 +118,7 @@ fn comment_json_grouped_by_line() {
   let expected_comment_json3 =
     CommentJson {
       user_name: "user3".to_owned(),
-      user_icon: "-".to_owned(), // since this is not in the cache we get the default
+      user_icon: "file://".to_owned(), // since this is not in the cache we get the default
       link: "https://sample.data/comment3".to_owned(),
       line: 100,
       body: "body3".to_owned(),
