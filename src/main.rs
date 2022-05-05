@@ -20,7 +20,7 @@ use futures::stream::{self, StreamExt};
 use tui_app::render_tui;
 use reqwest;
 use base64;
-use avatar::get_url_data;
+use avatar::get_or_create_avatar_file;
 
 mod model;
 mod user_dir;
@@ -398,7 +398,7 @@ fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
   Ok(())
 }
 
-fn write_comment_files(checkout_path: &str, comments: &Comments, avatar_hash: HashMap<Url, Base64Encoded>) -> R<()> {
+fn write_comment_files(checkout_path: &str, comments: &Comments, avatar_hash: HashMap<Url, FileUrl>) -> R<()> {
   if !comments.is_empty() {
     println!("Generating comment files...");
 
@@ -854,32 +854,51 @@ async fn render_markdown(octocrab: Octocrab, content: String) -> R<String> {
     .map_err(PursError::from)
 }
 
-async fn get_avatars(comments: &Comments) -> R<HashMap<Url, Base64Encoded>> {
-  let mut unique_gravatar_urls: HashSet<Url> = HashSet::new();
+async fn get_avatars(comments: &Comments) -> R<HashMap<Url, FileUrl>> {
+  let mut unique_gravatar_urls: HashSet<AvatarInfo> = HashSet::new();
+  let cache_path = "";
 
   comments.comments.iter().for_each(|c| {
-    unique_gravatar_urls.insert(c.author.clone().gravatar_url());
+    let avatar =
+      AvatarInfo::new(
+        c.author.clone().user_id(),
+        c.author.clone().gravatar_url(),
+        PathBuf::from(cache_path)
+      );
+
+    unique_gravatar_urls.insert(avatar);
   });
 
   println!("comments urls: {:?}", unique_gravatar_urls);
 
 
-  let url_data_handles = unique_gravatar_urls.iter().map(|u| {
-    tokio::task::spawn(get_url_data(u.clone()))
+  let url_data_handles = unique_gravatar_urls.into_iter().map(|u| {
+    tokio::task::spawn(get_avatar_from_cache(u))
   });
 
   //TODO: Use filter_map to remove any errors
-  let url_data_results: HashMap<Url, Base64Encoded> =
+  let url_data_results: HashMap<Url, FileUrl> =
     try_join_all(url_data_handles)
     .await
     .map_err(PursError::from)?
     .iter()
     .filter_map(|r| r.as_ref().ok())
-    .map(|(u, d)| {
-      let base64_encoded = base64::encode_config(d, base64::STANDARD);
-      (u.clone(), Base64Encoded::new(format!("data:image/png;base64,{}", base64_encoded)))
+    .map(|(url, file_url)| {
+      (url.clone(), file_url.clone())
     })
     .collect();
 
     Ok(url_data_results)
+}
+
+async fn get_avatar_from_cache(avatar_info: AvatarInfo) -> R<(Url, FileUrl)> {
+  get_or_create_avatar_file(
+    &avatar_info.user_id(),
+    &avatar_info.avatar_url(),
+    &avatar_info.cache_path_as_string()
+  )
+  .await
+  .map(|file_url|{
+    (avatar_info.avatar_url(), file_url)
+  })
 }

@@ -625,7 +625,7 @@ impl Base64Encoded {
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UserId(u64);
 
 impl UserId {
@@ -749,13 +749,13 @@ impl CommentJson {
   // }
 
 
-  pub fn grouped_by_line_2(comments: Comments, avatars: HashMap<Url, Base64Encoded>) -> Vec<FileCommentsJson> {
+  pub fn grouped_by_line_2(comments: Comments, avatars: HashMap<Url, FileUrl>) -> Vec<FileCommentsJson> {
     let comments_with_lines = comments.comments.into_iter().filter_map(|c|{
         c.line.map(|cl|{
           let x = avatars.get(&c.author.gravatar);
           CommentJson {
             user_name: c.author.name,
-            user_icon: x.clone().map(|s| s.clone().0).unwrap_or("-".to_owned()), //TODO: Have a better default
+            user_icon: x.clone().map(|file_url| file_url.to_string()).unwrap_or("file://".to_owned()), //TODO: Have a better default
             link: c.comment_url.0,
             line: cl.0,
             body: c.body.clone(),
@@ -850,3 +850,28 @@ pub enum CacheFileStatus {
 
 #[cfg(test)]
 mod tests;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AvatarInfo(UserId, Url, PathBuf);
+
+impl AvatarInfo {
+  pub fn new(user_id: UserId, avatar_url: Url, cache_path: PathBuf) -> Self {
+    AvatarInfo(user_id, avatar_url, cache_path)
+  }
+
+  pub fn user_id(&self) -> UserId {
+    self.0.clone()
+  }
+
+  pub fn avatar_url(&self) -> Url {
+    self.1.clone()
+  }
+
+  pub fn cache_path(&self) -> PathBuf {
+    self.2.clone()
+  }
+
+  pub fn cache_path_as_string(&self) -> String {
+    self.2.clone().to_string_lossy().to_string()
+  }
+}
