@@ -747,7 +747,7 @@ async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64)
 
     let comments =
       comments.into_iter().map(|c| {
-        let author = User::new(c.user.login, Url::from(c.user.avatar_url));
+        let author = User::new(c.user.login, Url::from(c.user.avatar_url), UserId::new(c.user.id.0));
         let file_name = FileName::new(c.path);
 
         Comment {
@@ -872,7 +872,7 @@ async fn get_avatars(comments: &Comments) -> R<HashMap<Url, Base64Encoded>> {
   let url_data_results: HashMap<Url, Base64Encoded> =
     try_join_all(url_data_handles)
     .await
-    .map_err( PursError::from)?
+    .map_err(PursError::from)?
     .iter()
     .filter_map(|r| r.as_ref().ok())
     .map(|(u, d)| {

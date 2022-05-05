@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::model::{Base64Encoded, Markdown};
 
-use super::{CommentJson, Comment, Comments, FileName, LineNumber, Url, User, CommentId, FileCommentsJson, LineCommentsJson};
+use super::{CommentJson, Comment, Comments, FileName, LineNumber, Url, User, UserId, CommentId, FileCommentsJson, LineCommentsJson};
 
 #[test]
 fn comment_json_grouped_by_line() {
@@ -13,7 +13,7 @@ fn comment_json_grouped_by_line() {
       diff_hunk: "diff hunk1".to_owned(),
       body: "body1".to_owned(),
       markdown_body: None,
-      author: User::new("user1".to_owned(), Url::new("https://sample.data/user1".to_owned())),
+      author: User::new("user1".to_owned(), Url::new("https://sample.data/user1".to_owned()), UserId::new(1)),
       comment_url: Url::new("https://sample.data/comment1".to_owned()),
       line: Some(LineNumber::new(100)),
       file_name: FileName::new("filename1".to_owned()),
@@ -26,7 +26,7 @@ fn comment_json_grouped_by_line() {
       diff_hunk: "diff hunk2".to_owned(),
       body: "body2".to_owned(),
       markdown_body: None,
-      author: User::new("user2".to_owned(), Url::new("https://sample.data/user2".to_owned())),
+      author: User::new("user2".to_owned(), Url::new("https://sample.data/user2".to_owned()), UserId::new(2)),
       comment_url: Url::new("https://sample.data/comment2".to_owned()),
       line: Some(LineNumber::new(150)),
       file_name: FileName::new("filename2".to_owned()),
@@ -39,7 +39,7 @@ fn comment_json_grouped_by_line() {
       diff_hunk: "diff hunk3".to_owned(),
       body: "body3".to_owned(),
       markdown_body: None,
-      author: User::new("user3".to_owned(), Url::new("https://sample.data/user3".to_owned())),
+      author: User::new("user3".to_owned(), Url::new("https://sample.data/user3".to_owned()), UserId::new(3)),
       comment_url: Url::new("https://sample.data/comment3".to_owned()),
       line: Some(LineNumber::new(100)),
       file_name: FileName::new("filename1".to_owned()),
@@ -52,7 +52,7 @@ fn comment_json_grouped_by_line() {
       diff_hunk: "diff hunk4".to_owned(),
       body: "body4".to_owned(),
       markdown_body: None,
-      author: User::new("user4".to_owned(), Url::new("https://sample.data/user4".to_owned())),
+      author: User::new("user4".to_owned(), Url::new("https://sample.data/user4".to_owned()), UserId::new(4)),
       comment_url: Url::new("https://sample.data/comment4".to_owned()),
       line: None,
       file_name: FileName::new("filename1".to_owned()),
@@ -65,7 +65,7 @@ fn comment_json_grouped_by_line() {
       diff_hunk: "diff hunk5".to_owned(),
       body: "body5".to_owned(),
       markdown_body: Some(Markdown::new("**markdown**".to_owned())),
-      author: User::new("user5".to_owned(), Url::new("https://sample.data/user5".to_owned())),
+      author: User::new("user5".to_owned(), Url::new("https://sample.data/user5".to_owned()), UserId::new(5)),
       comment_url: Url::new("https://sample.data/comment5".to_owned()),
       line: Some(LineNumber::new(30)),
       file_name: FileName::new("filename3".to_owned()),

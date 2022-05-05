@@ -644,19 +644,24 @@ impl fmt::Display for UserId {
 pub struct User {
   name: String,
   gravatar: Url,
-  //userId: UserId
+  user_id: UserId
 }
 
 impl User {
-  pub fn new(name: String, gravatar: Url) -> Self {
+  pub fn new(name: String, gravatar: Url, user_id: UserId) -> Self {
     User {
       name,
       gravatar,
+      user_id
     }
   }
 
   pub fn gravatar_url(self) -> Url {
     self.gravatar
+  }
+
+  pub fn user_id(self) -> UserId {
+    self.user_id()
   }
 }
 
