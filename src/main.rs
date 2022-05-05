@@ -246,7 +246,7 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
 
         clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
         write_diff_files(checkout_path.as_ref(), &pr.diffs)?;
-        let avatar_hash = get_avatars(&pr.comments).await?;
+        let avatar_hash = get_avatars(&pr.comments, &config.avatar_cache_dir).await?;
         println!("avatar_hash keys: {:?}", avatar_hash.keys().collect::<Vec<_>>());
         let rendered_comments =
           render_markdown_comments(&octocrab,  &pr.comments).await?;
@@ -857,16 +857,15 @@ async fn render_markdown(octocrab: Octocrab, content: String) -> R<String> {
     .map_err(PursError::from)
 }
 
-async fn get_avatars(comments: &Comments) -> R<HashMap<Url, FileUrl>> {
+async fn get_avatars(comments: &Comments, avatar_cache_directory: &AvatarCacheDirectory) -> R<HashMap<Url, FileUrl>> {
   let mut unique_gravatar_urls: HashSet<AvatarInfo> = HashSet::new();
-  let cache_path = "";
 
   comments.comments.iter().for_each(|c| {
     let avatar =
       AvatarInfo::new(
         c.author.clone().user_id(),
         c.author.clone().gravatar_url(),
-        PathBuf::from(cache_path)
+        avatar_cache_directory.clone()
       );
 
     unique_gravatar_urls.insert(avatar);
@@ -898,7 +897,7 @@ async fn get_avatar_from_cache(avatar_info: AvatarInfo) -> R<(Url, FileUrl)> {
   get_or_create_avatar_file(
     &avatar_info.user_id(),
     &avatar_info.avatar_url(),
-    &avatar_info.cache_path_as_string()
+    &avatar_info.cache_path().cache_path_as_string()
   )
   .await
   .map(|file_url|{

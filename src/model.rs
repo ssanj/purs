@@ -420,12 +420,16 @@ impl Display for ScriptToRun {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AvatarCacheDirectory(PathBuf);
 
 impl AvatarCacheDirectory {
   pub fn new(cache_dir: PathBuf) -> Self {
     AvatarCacheDirectory(cache_dir)
+  }
+
+  pub fn cache_path_as_string(&self) -> String {
+    self.0.clone().to_string_lossy().to_string()
   }
 }
 
@@ -871,10 +875,10 @@ pub enum CacheFileStatus {
 mod tests;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct AvatarInfo(UserId, Url, PathBuf);
+pub struct AvatarInfo(UserId, Url, AvatarCacheDirectory);
 
 impl AvatarInfo {
-  pub fn new(user_id: UserId, avatar_url: Url, cache_path: PathBuf) -> Self {
+  pub fn new(user_id: UserId, avatar_url: Url, cache_path: AvatarCacheDirectory) -> Self {
     AvatarInfo(user_id, avatar_url, cache_path)
   }
 
@@ -886,11 +890,7 @@ impl AvatarInfo {
     self.1.clone()
   }
 
-  pub fn cache_path(&self) -> PathBuf {
+  pub fn cache_path(&self) -> AvatarCacheDirectory {
     self.2.clone()
-  }
-
-  pub fn cache_path_as_string(&self) -> String {
-    self.2.clone().to_string_lossy().to_string()
   }
 }
