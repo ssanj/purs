@@ -159,6 +159,8 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
       WorkingDirectoryStatus::Created => println!("created working directory: {}", working_dir),
     }
 
+    let avatar_cache_dir = AvatarCacheDirectory::from(working_dir.clone());
+
     let token =
       matches
       .value_of("gh_token")
@@ -168,6 +170,7 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
     let config =
       Config {
         working_dir,
+        avatar_cache_dir,
         repositories,
         token,
         script

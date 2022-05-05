@@ -166,6 +166,7 @@ impl <T: Clone> NonEmptyVec<T> {
 #[derive(Debug)]
 pub struct Config {
     pub working_dir: WorkingDirectory,
+    pub avatar_cache_dir: AvatarCacheDirectory,
     pub repositories: NonEmptyVec<OwnerRepo>,
     pub token: GitHubToken,
     pub script: Option<ScriptToRun>
@@ -419,7 +420,25 @@ impl Display for ScriptToRun {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+pub struct AvatarCacheDirectory(PathBuf);
+
+impl AvatarCacheDirectory {
+  pub fn new(cache_dir: PathBuf) -> Self {
+    AvatarCacheDirectory(cache_dir)
+  }
+}
+
+impl From<WorkingDirectory> for AvatarCacheDirectory {
+  fn from(wd: WorkingDirectory) -> Self {
+    let mut cache_dir = wd.0.clone();
+    cache_dir.push(".assets");
+    cache_dir.push(".avatars");
+    AvatarCacheDirectory::new(cache_dir)
+  }
+}
+
+#[derive(Debug, Clone)]
 pub struct WorkingDirectory(PathBuf);
 
 impl WorkingDirectory {
