@@ -61,7 +61,7 @@ async fn test_does_cache_file_exist_with_file() {
 
 
 #[tokio::test]
-async fn test_get_or_create_avatar_file() {
+async fn test_get_or_create_avatar_file_not_cached() {
     let mock_server = MockServer::start().await;
     let data = "1234".as_bytes();
     let template =
@@ -90,4 +90,23 @@ async fn test_get_or_create_avatar_file() {
     file.read_to_string(&mut file_contents).unwrap();
 
     assert_eq!(file_contents, std::str::from_utf8(data).unwrap());
+}
+
+#[tokio::test]
+async fn test_get_or_create_avatar_file_from_cache() {
+    let data = "1234".as_bytes();
+    let file_name = "12345.png";
+    let cache_dir = tempdir().unwrap().into_path().to_string_lossy().to_string();
+    let expected_file_url = format!("file://{}/{}", cache_dir, file_name);
+    let cache_file_path = format!("{}/{}", cache_dir, file_name);
+
+    let mut file =  File::create(&cache_file_path).expect(&format!("could not create file: {}", &cache_file_path));
+    file.write_all(data).unwrap();
+
+    let avatar_url = Url::new(format!("/u/12345?v=4"));
+    let user_id = UserId::new(12345);
+
+    let file_url = get_or_create_avatar_file(&user_id, &avatar_url, &cache_dir).await.unwrap();
+
+    assert_eq!(file_url.to_string(), expected_file_url);
 }
