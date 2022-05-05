@@ -895,9 +895,7 @@ async fn get_avatars(comments: &Comments, avatar_cache_directory: &AvatarCacheDi
 
 async fn get_avatar_from_cache(avatar_info: AvatarInfo) -> R<(Url, FileUrl)> {
   get_or_create_avatar_file(
-    &avatar_info.user_id(),
-    &avatar_info.avatar_url(),
-    &avatar_info.cache_path().cache_path_as_string()
+    &avatar_info
   )
   .await
   .map(|file_url|{

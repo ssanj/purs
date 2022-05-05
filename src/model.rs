@@ -433,6 +433,12 @@ impl AvatarCacheDirectory {
   }
 }
 
+impl fmt::Display for AvatarCacheDirectory {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.cache_path_as_string())
+    }
+}
+
 impl From<WorkingDirectory> for AvatarCacheDirectory {
   fn from(wd: WorkingDirectory) -> Self {
     let mut cache_dir = wd.0.clone();
@@ -832,12 +838,12 @@ impl fmt::Display for FileUrl {
 }
 
 #[derive(Debug, Clone)]
-pub struct AvatarCacheFile(UserId, PathBuf);
+pub struct AvatarCacheFile(UserId, AvatarCacheDirectory);
 
 impl AvatarCacheFile {
 
-  pub fn new(user_id: &UserId, path: String) -> Self {
-    AvatarCacheFile(user_id.clone(), PathBuf::from(path))
+  pub fn new(user_id: &UserId, avatar_cache_path: AvatarCacheDirectory) -> Self {
+    AvatarCacheFile(user_id.clone(), avatar_cache_path.clone())
   }
 
   pub fn url(&self) -> R<FileUrl> {
@@ -851,7 +857,7 @@ impl AvatarCacheFile {
 
   pub fn path(&self) -> PathBuf {
     let file_name = self.0.0;
-    let mut path_buf = self.1.clone();
+    let mut path_buf = PathBuf::from(self.1.clone().cache_path_as_string());
     path_buf.push(file_name.to_string());
     path_buf.set_extension("png");
     path_buf
@@ -893,4 +899,10 @@ impl AvatarInfo {
   pub fn cache_path(&self) -> AvatarCacheDirectory {
     self.2.clone()
   }
+}
+
+impl fmt::Display for AvatarInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "user_id:{}, avatar_url:{}, avatar_cache_dir:{}", self.0, self.1, self.2)
+    }
 }
