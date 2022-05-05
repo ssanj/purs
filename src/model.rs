@@ -448,6 +448,12 @@ impl From<WorkingDirectory> for AvatarCacheDirectory {
   }
 }
 
+impl From<&Path> for AvatarCacheDirectory {
+  fn from(path: &Path) -> Self {
+      AvatarCacheDirectory(PathBuf::from(path))
+  }
+}
+
 #[derive(Debug, Clone)]
 pub struct WorkingDirectory(PathBuf);
 

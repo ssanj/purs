@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::model::{Base64Encoded, Markdown};
+use crate::model::{Base64Encoded, Markdown, FileUrl};
 
 use super::{CommentJson, Comment, Comments, FileName, LineNumber, Url, User, UserId, CommentId, FileCommentsJson, LineCommentsJson};
 
@@ -86,9 +86,9 @@ fn comment_json_grouped_by_line() {
 
   let avatar_hash =
     HashMap::from([
-      (Url::new("https://sample.data/user1".to_owned()), Base64Encoded::new("https://sample.data/user1".to_owned())),
-      (Url::new("https://sample.data/user2".to_owned()), Base64Encoded::new("https://sample.data/user2".to_owned())),
-      (Url::new("https://sample.data/user5".to_owned()), Base64Encoded::new("https://sample.data/user5".to_owned())),
+      (Url::new("https://sample.data/user1".to_owned()), FileUrl::new(Url::new("https://sample.data/user1".to_owned()))),
+      (Url::new("https://sample.data/user2".to_owned()), FileUrl::new(Url::new("https://sample.data/user2".to_owned()))),
+      (Url::new("https://sample.data/user5".to_owned()), FileUrl::new(Url::new("https://sample.data/user5".to_owned()))),
     ]);
 
   let mut actual_result = CommentJson::grouped_by_line_2(comments, avatar_hash);
