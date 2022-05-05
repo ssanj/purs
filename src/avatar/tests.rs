@@ -76,7 +76,8 @@ async fn test_get_or_create_avatar_file_not_cached() {
         .await;
 
     let file_name = "12345.png";
-    let cache_dir = AvatarCacheDirectory::from(tempdir().unwrap().path());
+    let temp_dir = tempdir().unwrap();
+    let cache_dir = AvatarCacheDirectory::from(temp_dir.path());
     let avatar_url = Url::new(format!("{}/u/12345?v=4", &mock_server.uri()));
     let user_id = UserId::new(12345);
     let avatar_info = AvatarInfo::new(user_id, avatar_url, cache_dir.clone());
@@ -97,7 +98,8 @@ async fn test_get_or_create_avatar_file_not_cached() {
 async fn test_get_or_create_avatar_file_from_cache() {
     let data = "1234".as_bytes();
     let file_name = "12345.png";
-    let cache_dir = AvatarCacheDirectory::from(tempdir().unwrap().path());
+    let temp_dir = tempdir().unwrap();
+    let cache_dir = AvatarCacheDirectory::from(temp_dir.path());
     let expected_file_url = format!("file://{}/{}", cache_dir, file_name);
     let cache_file_path = format!("{}/{}", cache_dir, file_name);
 
