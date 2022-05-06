@@ -651,14 +651,6 @@ impl fmt::Display for Url {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Base64Encoded(String);
-
-impl Base64Encoded {
-  pub fn new(value: String) -> Self {
-    Base64Encoded(value)
-  }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UserId(u64);

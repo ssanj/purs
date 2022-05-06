@@ -1,9 +1,8 @@
-use dirs::cache_dir;
 use wiremock::{MockServer, Mock, ResponseTemplate};
 use wiremock::matchers::{method, path};
 use crate::avatar::{get_url_data, does_cache_file_exist, get_or_create_avatar_file};
 use crate::model::{Url, AvatarCacheFile, CacheFileStatus, UserId, AvatarCacheDirectory, AvatarInfo};
-use pretty_assertions::{assert_eq, assert_ne};
+use pretty_assertions::assert_eq;
 use tempfile::tempdir;
 use std::fs::File;
 use std::io::{Write, Read};
