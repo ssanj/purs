@@ -439,14 +439,14 @@ impl fmt::Display for AvatarCacheDirectory {
     }
 }
 
-impl From<WorkingDirectory> for AvatarCacheDirectory {
-  fn from(wd: WorkingDirectory) -> Self {
-    let mut cache_dir = wd.0.clone();
-    cache_dir.push(".assets");
-    cache_dir.push(".avatars");
-    AvatarCacheDirectory::new(cache_dir)
-  }
-}
+// impl From<WorkingDirectory> for AvatarCacheDirectory {
+//   fn from(wd: WorkingDirectory) -> Self {
+//     let mut cache_dir = wd.0.clone();
+//     cache_dir.push(".assets");
+//     cache_dir.push(".avatars");
+//     AvatarCacheDirectory::new(cache_dir)
+//   }
+// }
 
 impl From<&Path> for AvatarCacheDirectory {
   fn from(path: &Path) -> Self {
@@ -460,6 +460,13 @@ pub struct WorkingDirectory(PathBuf);
 impl WorkingDirectory {
   pub fn new(working_dir: &Path) -> Self {
     WorkingDirectory(working_dir.to_path_buf())
+  }
+
+  pub fn avatar_cache_dir(&self) -> AvatarCacheDirectory {
+    let mut cache_dir = self.0.clone();
+    cache_dir.push(".assets");
+    cache_dir.push(".avatars");
+    AvatarCacheDirectory::new(cache_dir)
   }
 }
 

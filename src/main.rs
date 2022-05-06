@@ -157,8 +157,7 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
       WorkingDirectoryStatus::Exists => {},
       WorkingDirectoryStatus::Created => println!("created working directory: {}", working_dir),
     }
-
-    let avatar_cache_dir = AvatarCacheDirectory::from(working_dir.clone());
+    let avatar_cache_dir = working_dir.avatar_cache_dir();
 
     let token =
       matches
