@@ -1,4 +1,4 @@
-use futures::{FutureExt, TryFutureExt};
+use futures::FutureExt;
 use futures::future::{try_join_all, join_all};
 use octocrab::{self, OctocrabBuilder, Octocrab};
 use octocrab::params;
@@ -18,9 +18,8 @@ use unidiff::PatchSet;
 use std::time::Instant;
 use futures::stream::{self, StreamExt};
 use tui_app::render_tui;
-use reqwest;
-use base64;
 use avatar::get_or_create_avatar_file;
+use tools::partition;
 
 mod model;
 mod user_dir;
@@ -246,7 +245,9 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
 
         clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
         write_diff_files(checkout_path.as_ref(), &pr.diffs)?;
+        println!("before get_avatars");
         let avatar_hash = get_avatars(&pr.comments, &config.avatar_cache_dir).await?;
+        println!("after avatars");
         println!("avatar_hash keys: {:?}", avatar_hash.keys().collect::<Vec<_>>());
         let rendered_comments =
           render_markdown_comments(&octocrab,  &pr.comments).await?;
@@ -598,6 +599,7 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
     }
 }
 
+
 // async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
 
 //     //Use only the first for now.
@@ -859,7 +861,6 @@ async fn render_markdown(octocrab: Octocrab, content: String) -> R<String> {
 
 async fn get_avatars(comments: &Comments, avatar_cache_directory: &AvatarCacheDirectory) -> R<HashMap<Url, FileUrl>> {
   let mut unique_gravatar_urls: HashSet<AvatarInfo> = HashSet::new();
-
   comments.comments.iter().for_each(|c| {
     let avatar =
       AvatarInfo::new(
@@ -871,7 +872,7 @@ async fn get_avatars(comments: &Comments, avatar_cache_directory: &AvatarCacheDi
     unique_gravatar_urls.insert(avatar);
   });
 
-  println!("comments urls: {:?}", unique_gravatar_urls);
+  println!("avatar urls: {:?}", unique_gravatar_urls);
 
 
   let url_data_handles = unique_gravatar_urls.into_iter().map(|u| {
@@ -879,18 +880,24 @@ async fn get_avatars(comments: &Comments, avatar_cache_directory: &AvatarCacheDi
   });
 
   //TODO: Use filter_map to remove any errors
-  let url_data_results: HashMap<Url, FileUrl> =
+  let url_data_results_with_errors =
     try_join_all(url_data_handles)
     .await
-    .map_err(PursError::from)?
-    .iter()
-    .filter_map(|r| r.as_ref().ok())
-    .map(|(url, file_url)| {
-      (url.clone(), file_url.clone())
-    })
-    .collect();
+    .map_err(PursError::from)?;
 
-    Ok(url_data_results)
+  let (url_data_results, errors) =
+    partition(url_data_results_with_errors);
+
+  log_errors("get_avatars got the following errors:", errors);
+
+  Ok(url_data_results.into_iter().collect())
+}
+
+fn log_errors(message: &str, errors: Vec<PursError>) {
+  println!("{}", message);
+  errors.into_iter().for_each(|e| {
+    eprintln!("  {}", e)
+  })
 }
 
 async fn get_avatar_from_cache(avatar_info: AvatarInfo) -> R<(Url, FileUrl)> {

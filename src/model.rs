@@ -247,7 +247,7 @@ pub enum PursError {
     ScriptExecutionError(ScriptErrorType),
     TUIError(NestedError),
     ReqwestError(NestedError),
-    FileError(NestedError),
+    FileError(String, NestedError),
     AvatarCreationError(AvatarCreationErrorType),
     UrlParseError(NestedError),
 }
@@ -281,7 +281,7 @@ impl Display for PursError {
             PursError::ScriptExecutionError(error) => write!(f, "PursError.ScriptExecutionError: {}", error),
             PursError::TUIError(error) => write!(f, "PursError.TUIError: {}", error),
             PursError::ReqwestError(error) => write!(f, "PursError.ReqwestError: {}", error),
-            PursError::FileError(error) => write!(f, "PursError.FileError: {}", error),
+            PursError::FileError(prefix, error) => write!(f, "PursError.FileError: {}: {}", prefix, error),
             PursError::AvatarCreationError(error) => write!(f, "PursError.AvatarCreationError: {}", error),
             PursError::UrlParseError(error) => write!(f, "PursError.UrlParseError: {}", error),
         }
@@ -688,7 +688,7 @@ impl User {
   }
 
   pub fn user_id(self) -> UserId {
-    self.user_id()
+    self.user_id
   }
 }
 
@@ -854,11 +854,22 @@ impl AvatarCacheFile {
 
 
   pub fn path(&self) -> PathBuf {
-    let file_name = self.0.0;
     let mut path_buf = PathBuf::from(self.1.clone().cache_path_as_string());
-    path_buf.push(file_name.to_string());
-    path_buf.set_extension("png");
+    path_buf.push(self.avatar_file_name());
     path_buf
+  }
+
+  pub fn cache_path_as_string(&self) -> String {
+    self.1.clone().cache_path_as_string()
+  }
+
+  pub fn cache_file_path(&self) -> String {
+    self.path().to_string_lossy().to_string()
+  }
+
+  pub fn avatar_file_name(&self) -> String {
+    let user_id = self.0.0;
+    format!("{}.png", user_id)
   }
 }
 

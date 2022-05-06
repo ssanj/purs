@@ -14,3 +14,18 @@ pub fn group_by<K, V, F, I>(values: I, f: F) -> HashMap<K, Vec<V>>
 
       map
   }
+
+
+pub fn partition<T, E, I>(results: I) -> (Vec<T>, Vec<E>)
+  where I: IntoIterator<Item = Result<T, E>>
+{
+  let mut errors: Vec<E> = vec![];
+  let mut successes: Vec<T> = vec![];
+
+  results.into_iter().for_each(|r| match r {
+    Ok(value) => successes.push(value),
+    Err(error) => errors.push(error),
+  });
+
+  (successes, errors)
+}

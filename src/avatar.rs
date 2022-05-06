@@ -69,16 +69,25 @@ pub async fn does_cache_file_exist(avatar_cache_file: &AvatarCacheFile) -> R<Cac
     Ok(_) => Ok(CacheFileStatus::Exists),
     Err(e) => match e.kind() {
       io::ErrorKind::NotFound => Ok(CacheFileStatus::DoesNotExist),
-      _ => Err(PursError::FileError(NestedError::from(e)))
+      _ => {
+      let cache_dir = avatar_cache_file.cache_path_as_string();
+      let prefix = format!("cache_dir: {}, cache_file: {}", cache_dir, avatar_cache_file.cache_file_path());
+
+        Err(PursError::FileError(prefix, NestedError::from(e)))
+      }
     }
   }
 }
 
 
 pub async fn save_avatar_data(avatar_cache_file: &AvatarCacheFile, avatar_data: Vec<u8>) -> R<()> {
+  let file_path = avatar_cache_file.path();
+  let cache_dir = avatar_cache_file.cache_path_as_string();
+  let prefix = format!("cache_dir: {}, cache_file: {}", cache_dir, avatar_cache_file.cache_file_path());
+
   let mut file =
-    File::create(avatar_cache_file.path()).await.map_err(|e| PursError::FileError(NestedError::from(e)))?;
-  file.write_all(&avatar_data).await.map_err(|e| PursError::FileError(NestedError::from(e)))?;
+    File::create(file_path).await.map_err(|e| PursError::FileError(prefix.clone(), NestedError::from(e)))?;
+  file.write_all(&avatar_data).await.map_err(|e| PursError::FileError(prefix, NestedError::from(e)))?;
 
   Ok(())
 }
