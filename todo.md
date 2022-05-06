@@ -1,13 +1,19 @@
 # Purs
 
 
-## Features
+## Issues
 
-- Write each run command
-- Only show info on reviews and comments if they exist. That makes it easier to find.
+- [ ] Create parent directory of diff, if it doesn't exist
 
 
 ## Design
+
+### More Detail
+
+- Add the name of the user that created the PR to the detailed output
+- Possibly dump all the detailed information to a separate file like pr_details.txt
+
+### Legend
 
 - Add a legend with the options to the Details section when there are no selections:
   - Q to quit
@@ -18,16 +24,35 @@
   - B to copy base SHA to the clipboard
   - C to copy curl to retrieve PR content
   - U to copy clone url to clipboard
+
+### Modes of operation
+
 - Add a way to checkout the PR without the diffs or comments
   There seem to be two use cases here:
   - Check out the PR to review it (default -> Enter)
   - Check out the PR to address review comments. (We don't want diffs and comments in this view)
+- Possibly display a drop list of options in the TUI when you select a PR
+- Option to specify a PR number along with the user/repo and skip the TUI and download it directly
+- Option to download a branch by hash (obviously without any PR info, comments etc)
+
+### Comments
+
 - Add a way to fold comments
 - Add a way to quickly jump to comments in a file
+- Add the avatar url to the comment dump
 
-## Issues
-- The avatar content for each icon is large:
-  - The same icon data is repeated every time the same person comments
-  - The icon data is way too big to store in the JSON. Eg. 152K vs 5.1K file sizes with and without avatars
-  - Given that the same people will be generally commenting most of the time, could we download and locally link to the files instead? Something like a file cache?
-  - Alternatively could we store the avatars once for each person and then refer to that in each comment?
+### Logs
+
+#### Clean up
+- before get_avatars
+- avatar urls: {AvatarInfo(UserId(3426754), Url("https://avatars.githubusercontent.com/u/3426754?v=4"),
+- AvatarCacheDirectory("/Users/sanj/.purs/.assets/.avatars")), AvatarInfo(UserId(3954178), Url("https://
+avatars.githubusercontent.com/u/3954178?v=4"), AvatarCacheDirectory("/Users/sanj/.purs/.assets/.avatar
+s"))}
+- get_avatars got the following errors: //remove this when there are no errors
+- after avatars
+- avatar_hash keys: [Url("https://avatars.githubusercontent.com/u/3426754?v=4"), Url("  https://avatars.gi
+thubusercontent.com/u/3954178?v=4")]
+
+#### Add
+- Write each run command
