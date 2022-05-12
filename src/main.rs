@@ -3,16 +3,17 @@ use futures::future::{try_join_all, join_all};
 use octocrab::{self, OctocrabBuilder, Octocrab};
 use octocrab::params;
 use octocrab::models::pulls::ReviewState as GHReviewState;
+use tokio::sync::oneshot::error;
 use crate::model::*;
 use crate::user_dir::*;
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
-use std::io::{self, BufRead, Write};
+use std::io::{self, BufRead, Write, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
 use ansi_term::Colour;
-use std::fs::File;
+use std::fs::{File, self};
 extern crate unidiff;
 use unidiff::PatchSet;
 use std::time::Instant;
@@ -389,16 +390,76 @@ fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
       let diff_file_name = format!("{}.diff", d.file_name);
       let diff_file = Path::new(checkout_path).join(&diff_file_name);
 
-      let mut f = File::create(&diff_file).unwrap(); // TODO: Do we want to wrap this error?
+      let mut f = create_file_and_path(&diff_file).unwrap();
+
       println!("Creating {}", &diff_file_name);
       let buf: &[u8]= d.contents.as_ref();
-      f.write_all(buf).unwrap(); // TODO: Do we want to wrap this error?
+      f.write_all(buf)
+        .map_err(|e| {
+          to_file_error(
+            &format!(
+              "Could not write diff_file contents: \n{}",
+              std::str::from_utf8(buf)
+                .unwrap_or("<Could not retrieve content due to a UTF8 decoding error>")
+                ), e)
+          })
+        .unwrap();
   });
 
   let time_taken = write_start.elapsed().as_millis();
   println!("Writing diff files took {} ms", time_taken);
 
   Ok(())
+}
+
+fn to_file_error(error_message: &str, error: io::Error) -> PursError {
+    PursError::FileError(error_message.to_owned(), NestedError::from(error))
+}
+
+fn create_file_and_path(file: &Path) -> R<File> {
+  let file_creation_result = File::create(file);
+  match file_creation_result {
+    Ok(f) => Ok(f),
+    Err(e) => try_create_parent_directories(file, e)
+  }
+}
+
+fn try_create_parent_directories(file: &Path, e: io::Error) -> R<File> {
+  match e.kind() {
+    ErrorKind::NotFound => {
+      match file.parent() {
+        Some(parent_dir) => {
+          let created_file =
+            fs::create_dir_all(parent_dir)
+              .and_then(|_| File::create(file))
+              .map_err(|e| {
+            let error_message = format!("Could not created file: {}", get_file_name(file));
+            to_file_error(&error_message, e)
+          });
+
+          created_file
+        },
+        None => {
+          return Err(
+            to_file_error(
+              &format!("Could not create file because it does not have a parent directory: {}", get_file_name(file)),
+              e
+            ))
+        }
+      }
+    },
+    _ => {
+      return Err(
+        to_file_error(
+          &format!("Could not create file: {}", get_file_name(file)),
+          e
+      ))
+    }
+  }
+}
+
+fn get_file_name(file_path: &Path) -> String {
+  file_path.to_string_lossy().to_string()
 }
 
 fn write_comment_files(checkout_path: &str, comments: &Comments, avatar_hash: HashMap<Url, FileUrl>) -> R<()> {
