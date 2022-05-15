@@ -1,0 +1,35 @@
+name: mac
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    name: (${{ matrix.target }}-${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-10.15, macos-11]
+        target: [
+          x86_64-apple-darwin,
+        ]
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+
+      # Run build
+    - name: install rustup
+      run: |
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rustup-init.sh
+        sh rustup-init.sh -y --default-toolchain none
+        rustup target add ${{ matrix.target }}
+    - name: build
+      run: |
+        rustc -Vv
+        cargo -V
+        cargo build
+    - name: test
+      run: cargo test
