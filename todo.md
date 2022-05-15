@@ -44,15 +44,11 @@
 ### Logs
 
 #### Clean up
-- before get_avatars
-- avatar urls: {AvatarInfo(UserId(3426754), Url("https://avatars.githubusercontent.com/u/3426754?v=4"),
+
 - AvatarCacheDirectory("/Users/sanj/.purs/.assets/.avatars")), AvatarInfo(UserId(3954178), Url("https://
 avatars.githubusercontent.com/u/3954178?v=4"), AvatarCacheDirectory("/Users/sanj/.purs/.assets/.avatar
 s"))}
-- get_avatars got the following errors: //remove this when there are no errors
-- after avatars
-- avatar_hash keys: [Url("https://avatars.githubusercontent.com/u/3426754?v=4"), Url("  https://avatars.gi
-thubusercontent.com/u/3954178?v=4")]
+
 
 #### Add
 - Write each run command

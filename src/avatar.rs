@@ -42,7 +42,6 @@ pub async fn get_or_create_avatar_file(avatar_info: &AvatarInfo) -> R<FileUrl> {
               Err(
                 PursError::AvatarCreationError(
                   AvatarCreationErrorType::CouldNotSaveAvatar(
-                    //TODO: Add user_id, path and avatar_url into a class and dump it Display
                     format!("Could not save avatar: {}", avatar_info)
                   )
                 )
@@ -53,7 +52,6 @@ pub async fn get_or_create_avatar_file(avatar_info: &AvatarInfo) -> R<FileUrl> {
           Err(
             PursError::AvatarCreationError(
               AvatarCreationErrorType::CouldNotDownloadAvatar(
-                //TODO: Add user_id, path and avatar_url into a class and dump it in Display
                 e.to_string()
               )
             )

@@ -244,10 +244,7 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
 
         clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
         write_diff_files(checkout_path.as_ref(), &pr.diffs)?;
-        println!("before get_avatars");
         let avatar_hash = get_avatars(&pr.comments, &config.avatar_cache_dir).await?;
-        println!("after avatars");
-        println!("avatar_hash keys: {:?}", avatar_hash.keys().collect::<Vec<_>>());
         let rendered_comments =
           render_markdown_comments(&octocrab,  &pr.comments).await?;
 
@@ -657,56 +654,6 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
 }
 
 
-// async fn get_prs(config: &Config, octocrab: &Octocrab) -> octocrab::Result<Vec<PullRequest>> {
-
-//     //Use only the first for now.
-
-//     let OwnerRepo(owner, repo) = config.repositories.head();
-//     let page = octocrab
-//     .pulls(owner.0.to_owned(), repo.0.to_owned())
-//     .list()
-//     // Optional Parameters
-//     .state(params::State::Open)
-//     .sort(params::pulls::Sort::Created)
-//     .direction(params::Direction::Descending)
-//     .per_page(20)
-//     .send()
-//     .await?;
-
-//     let mut results = vec![];
-//     for pull in page {
-//         let title = pull.title.clone().unwrap_or("-".to_string());
-//         let pr_no = pull.number;
-//         // let diff_url = pull.diff_url.clone().map(|u| u.to_string()).unwrap_or("-".to_string());
-//         let ssh_url = pull.head.repo.clone().and_then(|r| (r.ssh_url));
-//         let head_sha = pull.head.sha;
-//         let repo_name = pull.head.repo.clone().and_then(|r| r.full_name);
-//         let branch_name = pull.head.ref_field;
-//         let base_sha = pull.base.sha;
-
-//         let reviews = get_reviews(octocrab, &owner, &repo, pr_no).await?;
-//         let comment_count = get_comments(octocrab, &owner, &repo, pr_no).await?;
-//         let diffs = get_pr_diffs(octocrab, &owner, &repo, pr_no).await?;
-
-//         results.push(
-//             PullRequest {
-//                 title,
-//                 pr_number: pr_no,
-//                 ssh_url,
-//                 branch_name,
-//                 head_sha,
-//                 repo_name,
-//                 base_sha,
-//                 reviews,
-//                 comment_count,
-//                 diffs
-//             }
-//         )
-//     }
-
-//     Ok(results)
-// }
-
 async fn flatten<T>(handle: tokio::task::JoinHandle<R<T>>) -> R<T> {
     match handle.await {
         Ok(result) => result,
@@ -752,15 +699,6 @@ fn parse_only_file_name(diff_file: &str) -> String {
     file_name.replace_range(..index, "");
     file_name
 }
-
-// async fn get_reviews(octocrab: &Octocrab, owner: &Owner, repo: &Repo, pr_no: u64) -> octocrab::Result<usize> {
-//     let reviews =
-//         octocrab
-//         .pulls(owner.0.to_owned(), repo.0.to_owned())
-//         .list_reviews(pr_no).await?;
-
-//     Ok(reviews.into_iter().count())
-// }
 
 async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u64) -> R<Reviews> {
     let gh_reviews =
@@ -929,14 +867,10 @@ async fn get_avatars(comments: &Comments, avatar_cache_directory: &AvatarCacheDi
     unique_gravatar_urls.insert(avatar);
   });
 
-  println!("avatar urls: {:?}", unique_gravatar_urls);
-
-
   let url_data_handles = unique_gravatar_urls.into_iter().map(|u| {
     tokio::task::spawn(get_avatar_from_cache(u))
   });
 
-  //TODO: Use filter_map to remove any errors
   let url_data_results_with_errors =
     try_join_all(url_data_handles)
     .await
@@ -945,7 +879,9 @@ async fn get_avatars(comments: &Comments, avatar_cache_directory: &AvatarCacheDi
   let (url_data_results, errors) =
     partition(url_data_results_with_errors);
 
-  log_errors("get_avatars got the following errors:", errors);
+  if !errors.is_empty() {
+    log_errors("get_avatars got the following errors:", errors)
+  }
 
   Ok(url_data_results.into_iter().collect())
 }
