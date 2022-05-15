@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
+#[allow(dead_code)]
 pub fn group_by<K, V, F, I>(values: I, f: F) -> HashMap<K, Vec<V>>
   where F: Fn(&V) -> K,
         K: Eq + Hash,
@@ -15,7 +16,7 @@ pub fn group_by<K, V, F, I>(values: I, f: F) -> HashMap<K, Vec<V>>
       map
   }
 
-
+#[allow(dead_code)]
 pub fn partition<T, E, I>(results: I) -> (Vec<T>, Vec<E>)
   where I: IntoIterator<Item = Result<T, E>>
 {

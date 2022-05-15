@@ -49,7 +49,7 @@ impl<T: Clone> StatefulList<T> {
   pub fn get_selected(&self) -> Option<T> {
       self.state
       .selected()
-      .and_then(|i| self.items.get(i).map(|i| i.clone()))
+      .and_then(|i| self.items.get(i).cloned())
   }
 }
 

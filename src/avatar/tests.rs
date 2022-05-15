@@ -81,12 +81,12 @@ async fn test_get_or_create_avatar_file_not_cached() {
     let user_id = UserId::new(12345);
     let avatar_info = AvatarInfo::new(user_id, avatar_url, cache_dir.clone());
     let file_url = get_or_create_avatar_file(&avatar_info).await.unwrap();
-    let expected_file_url = format!("file://{}/{}", cache_dir.to_string(), file_name);
+    let expected_file_url = format!("file://{}/{}", cache_dir, file_name);
 
     assert_eq!(file_url.to_string(), expected_file_url);
 
     let cache_file_path = expected_file_url.replace("file://", "");
-    let mut file = File::open(&cache_file_path).expect(&format!("could not find file: {}", &cache_file_path));
+    let mut file = File::open(&cache_file_path).unwrap_or_else(|_| panic!("could not find file: {}", &cache_file_path));
     let mut file_contents = String::new();
     file.read_to_string(&mut file_contents).unwrap();
 
@@ -102,11 +102,11 @@ async fn test_get_or_create_avatar_file_from_cache() {
     let expected_file_url = format!("file://{}/{}", cache_dir, file_name);
     let cache_file_path = format!("{}/{}", cache_dir, file_name);
 
-    let avatar_url = Url::new(format!("/u/12345?v=4"));
+    let avatar_url = Url::new("/u/12345?v=4".to_owned());
     let user_id = UserId::new(12345);
     let avatar_info = AvatarInfo::new(user_id, avatar_url, cache_dir.clone());
 
-    let mut file =  File::create(&cache_file_path).expect(&format!("could not create file: {}", &cache_file_path));
+    let mut file =  File::create(&cache_file_path).unwrap_or_else(|_| panic!("could not create file: {}", &cache_file_path));
     file.write_all(data).unwrap();
 
 

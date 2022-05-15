@@ -1,3 +1,3 @@
 #!/bin/bash
 
-cargo clippy --all-targets --all-features -- -D warnings
+cargo clippy --bin purs --all-features -- -D warnings

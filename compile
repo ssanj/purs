@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cargo watch -s 'cargo check --bin purs'

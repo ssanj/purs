@@ -70,11 +70,11 @@ impl fmt::Display for PullRequest {
 }
 
 
-#[derive(Debug)]
-pub enum UserSelection {
-    Number(u8),
-    Quit
-}
+// #[derive(Debug)]
+// pub enum UserSelection {
+//     // Number(u8),
+//     Quit
+// }
 
 
 pub enum CmdOutput {
@@ -120,8 +120,9 @@ pub struct NonEmptyVec<T> {
     rest: Vec<T>,
 }
 
+#[allow(dead_code)]
 impl <T: Clone> NonEmptyVec<T> {
-    #[allow(dead_code)]
+
     pub fn one(first: T) -> NonEmptyVec<T> {
         NonEmptyVec {
             first,
@@ -129,7 +130,7 @@ impl <T: Clone> NonEmptyVec<T> {
         }
     }
 
-    #[allow(dead_code)]
+
     pub fn new(first: T, rest: Vec<T>) -> NonEmptyVec<T> {
         NonEmptyVec {
             first,
@@ -137,7 +138,7 @@ impl <T: Clone> NonEmptyVec<T> {
         }
     }
 
-    #[allow(dead_code)]
+
     pub fn head(&self) -> T {
         self.first.clone()
     }
@@ -190,11 +191,11 @@ pub struct AsyncPullRequestParts {
 #[derive(Debug)]
 pub enum UserInputError {
     InvalidNumber(String),
-    InvalidSelection{
-        selected: u8,
-        min_selection: u8,
-        max_selection: usize
-    }
+    // InvalidSelection{
+    //     selected: u8,
+    //     min_selection: u8,
+    //     max_selection: usize
+    // }
 }
 
 impl Display for UserInputError {
@@ -203,9 +204,9 @@ impl Display for UserInputError {
           UserInputError::InvalidNumber(number) => {
             write!(f, "User selected an invalid option. Required a number but got: {}", number)
           },
-          UserInputError::InvalidSelection{ selected, min_selection, max_selection} => {
-            write!(f, "User selected an invalid option: {} which is out of the expected range: [{}-{}]", selected, min_selection, max_selection)
-          },
+          // UserInputError::InvalidSelection{ selected, min_selection, max_selection} => {
+          //   write!(f, "User selected an invalid option: {} which is out of the expected range: [{}-{}]", selected, min_selection, max_selection)
+          // },
         }
       }
 }
@@ -329,7 +330,7 @@ pub enum ProgramStatus {
 
 pub enum ValidSelection {
   Quit,
-  Pr(ValidatedPullRequest)
+  Pr(Box<ValidatedPullRequest>)
 }
 
 #[derive(Debug,Clone)]
@@ -458,9 +459,11 @@ impl From<&Path> for AvatarCacheDirectory {
 pub struct WorkingDirectory(PathBuf);
 
 impl WorkingDirectory {
+
   pub fn new(working_dir: &Path) -> Self {
     WorkingDirectory(working_dir.to_path_buf())
   }
+
 
   pub fn avatar_cache_dir(&self) -> AvatarCacheDirectory {
     let mut cache_dir = self.0.clone();
@@ -480,9 +483,11 @@ impl Display for WorkingDirectory {
 pub struct HomeDirectory(PathBuf);
 
 impl HomeDirectory {
+
   pub fn new(home_dir: &Path) -> Self {
     HomeDirectory(home_dir.to_path_buf())
   }
+
 
   pub fn join(&self, arg: &str) -> PathBuf {
     self.0.join(arg)
@@ -499,6 +504,7 @@ impl Display for HomeDirectory {
 pub struct GitHubToken(String);
 
 impl GitHubToken {
+
   pub fn new(token: &str) -> Self {
     GitHubToken(token.to_string())
   }
@@ -520,16 +526,19 @@ impl Display for CommandLineArgumentFailure {
 }
 
 impl CommandLineArgumentFailure {
+
   pub fn new(error: &str) -> Self {
     CommandLineArgumentFailure(error.to_string())
   }
 }
 
 #[derive(Debug)]
+
 pub enum WorkingDirectoryStatus {
   Exists,
   Created
 }
+
 
 #[derive(Debug, Clone)]
 pub enum ReviewState {
@@ -558,6 +567,7 @@ impl Reviews {
     self.reviews.len()
   }
 
+
   pub fn reviewer_names(&self) -> HashSet<String> {
     self.reviews.iter().map(|r| r.user.clone()).collect()
   }
@@ -567,6 +577,7 @@ impl Reviews {
 pub struct CommentId(u64);
 
 impl CommentId {
+
   pub fn new(comment_id: u64) -> Self {
     CommentId(comment_id)
   }
@@ -576,6 +587,7 @@ impl CommentId {
 pub struct LineNumber(u64);
 
 impl LineNumber {
+
   pub fn new(line_no: u64) -> Self {
     LineNumber(line_no)
   }
@@ -610,9 +622,10 @@ pub struct Comment {
 }
 
 impl Comment {
+
   pub fn update_markdown_body(self, markdown_body: String) -> Self {
     Comment {
-      markdown_body: Some(Markdown(markdown_body)),
+      markdown_body: Some(Markdown::new(markdown_body)),
       ..self
     }
   }
@@ -622,6 +635,7 @@ impl Comment {
 pub struct FileName(String);
 
 impl FileName {
+
   pub fn new(file_name: String) -> Self {
     FileName(file_name)
   }
@@ -637,6 +651,7 @@ impl Comments {
   pub fn count(&self) -> usize {
     self.comments.len()
   }
+
 
   pub fn is_empty(&self) -> bool {
     self.comments.is_empty()
@@ -682,6 +697,7 @@ pub struct User {
 }
 
 impl User {
+
   pub fn new(name: String, gravatar: Url, user_id: UserId) -> Self {
     User {
       name,
@@ -690,9 +706,11 @@ impl User {
     }
   }
 
+
   pub fn gravatar_url(self) -> Url {
     self.gravatar
   }
+
 
   pub fn user_id(self) -> UserId {
     self.user_id
@@ -740,56 +758,15 @@ pub struct FileCommentsJson {
 }
 
 impl CommentJson {
-  // pub fn grouped_by_line(comments: Comments) -> Vec<FileCommentsJson> {
-  //   let comments_with_lines = comments.comments.into_iter().filter_map(|c|{
-  //       c.line.map(|cl|{
-  //         CommentJson {
-  //           user_name: c.author.name,
-  //           user_icon: c.author.gravatar.0,
-  //           link: c.comment_url.0,
-  //           line: cl.0,
-  //           body: c.body.clone(),
-  //           body: c.markdown_body
-  //           file_name: c.file_name.0
-  //         }
-  //       })
-  //   }).collect::<Vec<_>>();
-
-  // let file_comments: HashMap<String, Vec<CommentJson>> =
-  //   group_by(comments_with_lines, |v| v.file_name.clone());
-
-  // file_comments
-  //   .into_iter()
-  //   .map(|(file_name, comments_in_file)| {
-  //     let lined_comment_json: HashMap<u64, Vec<CommentJson>> =
-  //       group_by(comments_in_file, |c| c.line);
-
-  //     let line_comments_json: Vec<LineCommentsJson> =
-  //       lined_comment_json
-  //         .into_iter()
-  //         .map(|(line, comment_json)| {
-  //             LineCommentsJson {
-  //               line,
-  //               file_name: file_name.clone(),
-  //               file_line_comments: comment_json
-  //             }
-  //         }).collect();
-
-  //     FileCommentsJson {
-  //       file_name: file_name.clone(),
-  //       file_comments: line_comments_json
-  //     }
-  //   }).collect()
-  // }
 
 
   pub fn grouped_by_line_2(comments: Comments, avatars: HashMap<Url, FileUrl>) -> Vec<FileCommentsJson> {
     let comments_with_lines = comments.comments.into_iter().filter_map(|c|{
         c.line.map(|cl|{
-          let x = avatars.get(&c.author.gravatar);
+          let op_file_url = avatars.get(&c.author.gravatar);
           CommentJson {
             user_name: c.author.name,
-            user_icon: x.clone().map(|file_url| file_url.to_string()).unwrap_or("file://".to_owned()), //TODO: Have a better default
+            user_icon: op_file_url.map(|file_url| file_url.to_string()).unwrap_or_else(|| "file://".to_owned()), //TODO: Have a better default
             link: c.comment_url.0,
             line: cl.0,
             body: c.body.clone(),
@@ -820,7 +797,7 @@ impl CommentJson {
           }).collect();
 
       FileCommentsJson {
-        file_name: file_name.clone(),
+        file_name,
         file_comments: line_comments_json
       }
     }).collect()
@@ -848,11 +825,11 @@ pub struct AvatarCacheFile(UserId, AvatarCacheDirectory);
 impl AvatarCacheFile {
 
   pub fn new(user_id: &UserId, avatar_cache_path: AvatarCacheDirectory) -> Self {
-    AvatarCacheFile(user_id.clone(), avatar_cache_path.clone())
+    AvatarCacheFile(user_id.clone(), avatar_cache_path)
   }
 
   pub fn url(&self) -> R<FileUrl> {
-    let url_file = format!("file://{}", self.path().to_string_lossy().to_string());
+    let url_file = format!("file://{}", self.path().to_string_lossy());
 
     url::Url::parse(&url_file)
       .map(|u| FileUrl::new(Url::from(u)))
@@ -878,12 +855,6 @@ impl AvatarCacheFile {
     let user_id = self.0.0;
     format!("{}.png", user_id)
   }
-}
-
-#[derive(Debug, Clone)]
-pub enum CacheFileType {
-  UserIdType(UserId),
-  DefaultType
 }
 
 

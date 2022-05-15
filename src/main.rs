@@ -3,12 +3,11 @@ use futures::future::{try_join_all, join_all};
 use octocrab::{self, OctocrabBuilder, Octocrab};
 use octocrab::params;
 use octocrab::models::pulls::ReviewState as GHReviewState;
-use tokio::sync::oneshot::error;
 use crate::model::*;
 use crate::user_dir::*;
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
-use std::io::{self, BufRead, Write, ErrorKind};
+use std::io::{self, Write, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
@@ -43,7 +42,7 @@ async fn main() {
       }
     },
     Err(e) => {
-      let error = format!("Could not launch purs due to an error in command line arguments. Error: {}", e.to_string());
+      let error = format!("Could not launch purs due to an error in command line arguments. Error: {}", e);
       eprintln!("{}", error)
     }
   }
@@ -212,7 +211,7 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
                 reviews: pr.reviews,
                 comments: pr.comments,
                 diffs: pr.diffs,
-                draft: pr.draft.map(|d| d == true).unwrap_or(false),
+                draft: pr.draft.unwrap_or(false),
                 created_at: pr.created_at,
                 updated_at: pr.updated_at,
               }
@@ -258,8 +257,8 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
             script_to_run(script, &checkout_path)?
           },
           None => {
-            println!("");
-            println!("Checkout path: {}", checkout_path.to_string());
+            println!();
+            println!("Checkout path: {}", checkout_path);
             println!("Diff file: {}", DIFF_FILE_LIST);
           }
         }
@@ -296,54 +295,54 @@ fn handle_user_selection_tui(pulls: Vec<ValidatedPullRequest>) -> R<ValidSelecti
   render_tui(pulls)
 }
 
-fn handle_user_selection(selection_size: usize, selection_options: &[ValidatedPullRequest]) -> R<ValidSelection> {
-  match read_user_response("Please select a PR to clone to 'q' to exit", selection_size) {
-    Ok(response) => {
-        match response {
-            UserSelection::Number(selection) => {
-                let selected = selection_options.get(usize::from(selection - 1)).unwrap();
-                Ok(ValidSelection::Pr(selected.clone()))
-            },
-            UserSelection::Quit => {
-              Ok(ValidSelection::Quit)
-            },
-        }
-    },
-    Err(e) => Err(PursError::UserError(e))
-  }
-}
+// fn handle_user_selection(selection_size: usize, selection_options: &[ValidatedPullRequest]) -> R<ValidSelection> {
+//   match read_user_response("Please select a PR to clone to 'q' to exit", selection_size) {
+//     Ok(response) => {
+//         match response {
+//             UserSelection::Number(selection) => {
+//                 let selected = selection_options.get(usize::from(selection - 1)).unwrap();
+//                 Ok(ValidSelection::Pr(selected.clone()))
+//             },
+//             UserSelection::Quit => {
+//               Ok(ValidSelection::Quit)
+//             },
+//         }
+//     },
+//     Err(e) => Err(PursError::UserError(e))
+//   }
+// }
 
 
-fn read_user_response(question: &str, limit: usize) -> Result<UserSelection, UserInputError> {
-  println!("{}", question);
-  let mut buffer = String::new();
-  let stdin = io::stdin();
-  let mut handle = stdin.lock();
-  handle.read_line(&mut buffer).expect("Could not read from input");
+// fn read_user_response(question: &str, limit: usize) -> Result<UserSelection, UserInputError> {
+//   println!("{}", question);
+//   let mut buffer = String::new();
+//   let stdin = io::stdin();
+//   let mut handle = stdin.lock();
+//   handle.read_line(&mut buffer).expect("Could not read from input");
 
-  let line = buffer.lines().next().expect("Could not extract line");
+//   let line = buffer.lines().next().expect("Could not extract line");
 
-  match line {
-     "q" | "Q" => Ok(UserSelection::Quit),
-     num =>
-        num.parse::<u8>()
-        .map_err( |_| UserInputError::InvalidNumber(num.to_string()))
-        .and_then(|n| {
-            let input = usize::from(n);
-            if  input == 0 || input > limit {
-                Err(
-                    UserInputError::InvalidSelection {
-                        selected: n,
-                        min_selection: 1,
-                        max_selection: limit
-                    }
-                )
-            } else {
-                Ok(UserSelection::Number(n))
-            }
-        }),
-  }
-}
+//   match line {
+//      "q" | "Q" => Ok(UserSelection::Quit),
+//      num =>
+//         num.parse::<u8>()
+//         .map_err( |_| UserInputError::InvalidNumber(num.to_string()))
+//         .and_then(|n| {
+//             let input = usize::from(n);
+//             if  input == 0 || input > limit {
+//                 Err(
+//                     UserInputError::InvalidSelection {
+//                         selected: n,
+//                         min_selection: 1,
+//                         max_selection: limit
+//                     }
+//                 )
+//             } else {
+//                 Ok(UserSelection::Number(n))
+//             }
+//         }),
+//   }
+// }
 
 fn clone_branch(ssh_url: GitRepoSshUrl, checkout_path: RepoCheckoutPath, branch_name: RepoBranchName) -> R<()> {
     print_info(format!("git clone {} -b {} {}", ssh_url, branch_name, checkout_path));
@@ -429,15 +428,12 @@ fn try_create_parent_directories(file: &Path, e: io::Error) -> R<File> {
     ErrorKind::NotFound => {
       match file.parent() {
         Some(parent_dir) => {
-          let created_file =
             fs::create_dir_all(parent_dir)
               .and_then(|_| File::create(file))
               .map_err(|e| {
             let error_message = format!("Could not created file: {}", get_file_name(file));
             to_file_error(&error_message, e)
-          });
-
-          created_file
+          })
         },
         None => {
           return Err(
@@ -542,10 +538,11 @@ async fn get_pulls(octocrab: Octocrab, owner_repo: OwnerRepo) -> R<octocrab::Pag
       .map_err( PursError::from)
 }
 
+type PageHandles = Vec<tokio::task::JoinHandle<Result<(octocrab::Page<octocrab::models::pulls::PullRequest>, OwnerRepo), PursError>>>;
+
 //TODO: Can we break this up into multiple functions?
 async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
-
-    let page_handles: Vec<tokio::task::JoinHandle<Result<(octocrab::Page<octocrab::models::pulls::PullRequest>, OwnerRepo), PursError>>> =
+    let page_handles:PageHandles  =
       config
       .repositories
       .to_vec()
@@ -822,7 +819,7 @@ async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64)
           markdown_body: None, //this will be filled only for the selected PR's comment
           line: c.line.map(LineNumber::new),
           in_reply_to_id: c.in_reply_to_id.map(CommentId::new),
-          comment_url: Url::new(c.html_url.into()),
+          comment_url: Url::new(c.html_url),
           author,
           file_name
         }

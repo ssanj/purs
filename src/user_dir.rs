@@ -16,7 +16,7 @@ pub fn get_or_create_working_dir(working_dir: &WorkingDirectory) -> Result<Worki
           if dir.is_dir() {
               Ok(WorkingDirectoryStatus::Exists)
           } else {
-              let error_message = format!("{} is not a directory", working_dir.to_string());
+              let error_message = format!("{} is not a directory", working_dir);
               let error = CommandLineArgumentFailure::new(&error_message);
               Err(error)
           },
@@ -28,7 +28,7 @@ pub fn get_or_create_working_dir(working_dir: &WorkingDirectory) -> Result<Worki
           match fs::create_dir_all(working_dir.avatar_cache_dir().to_string()) {
               Ok(_) =>  Ok(WorkingDirectoryStatus::Created),
               Err(e2) => {
-                let error_message = format!("Could not create dir: {}\n\t{}\n\t\t{}", working_dir.to_string(), e1, e2);
+                let error_message = format!("Could not create dir: {}\n\t{}\n\t\t{}", working_dir, e1, e2);
                 let error = CommandLineArgumentFailure::new(&error_message);
                 Err(error)
               },

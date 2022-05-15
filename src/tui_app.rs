@@ -69,7 +69,7 @@ fn run_app<B: Backend>(
                     KeyCode::Enter => {
                       let result = app.items.get_selected();
                       let selection_error = PursError::UserError(UserInputError::InvalidNumber("Could not match selected index".to_owned()));
-                      return result.map(ValidSelection::Pr).ok_or(selection_error)
+                      return result.map(|valid_pr| ValidSelection::Pr(Box::new(valid_pr))).ok_or(selection_error)
                     },
                     _ => {}
                 }
@@ -131,15 +131,13 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ValidatedPullRequest>)
           app.items
             .items
             .get(i)
-            .map(|x| x)
         });
 
     let text =
       selected
-        .clone()
         .map_or(
           no_pr_details("Select a PR to view its details"),
-          |pr| pr_details(pr)
+          pr_details
         );
 
     let p =
@@ -223,7 +221,7 @@ fn get_date_time<T: TimeZone>(date_time_option: Option<DateTime<T>>) -> String
 {
   date_time_option
     .map(|t| t.to_rfc2822())
-    .unwrap_or("-".to_owned())
+    .unwrap_or_else(|| "-".to_owned())
 }
 
 fn details_key_value(key: &str, value: String) -> Vec<Span> {
@@ -247,7 +245,7 @@ fn pr_line(pr: &ValidatedPullRequest) -> Vec<Span> {
         is_old(pr.updated_at),
       ]
       .into_iter()
-      .filter_map(|e| e.clone())
+      .flatten()
       .collect::<Vec<_>>();
 
       separate_by(labels, Span::raw(" "))

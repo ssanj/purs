@@ -32,4 +32,4 @@ jobs:
         cargo -V
         cargo build
     - name: test
-      run: cargo test
+      run: cargo test --bin purs

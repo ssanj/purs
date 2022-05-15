@@ -1,6 +1,5 @@
 use futures::TryFutureExt;
-use reqwest;
-use crate::{model::{Url, PursError, R, NestedError, AvatarCacheFile, UserId, CacheFileStatus, FileUrl, CacheFileType, AvatarCreationErrorType, AvatarInfo}};
+use crate::{model::{Url, PursError, R, NestedError, AvatarCacheFile, CacheFileStatus, FileUrl, AvatarCreationErrorType, AvatarInfo}};
 use tokio::{io::{self, AsyncWriteExt}, fs::OpenOptions};
 use tokio::fs::File;
 
@@ -20,7 +19,7 @@ pub async fn get_url_data(url: Url) -> R<(Url, Vec<u8>)> {
 pub async fn get_or_create_avatar_file(avatar_info: &AvatarInfo) -> R<FileUrl> {
   let avatar_url = avatar_info.avatar_url();
   let user_id = &avatar_info.user_id();
-  let cache_path = avatar_info.cache_path().clone();
+  let cache_path = avatar_info.cache_path();
   let avatar_cache_file = AvatarCacheFile::new(user_id, cache_path);
   match does_cache_file_exist(&avatar_cache_file).await? {
     CacheFileStatus::Exists => avatar_cache_file.url(),
