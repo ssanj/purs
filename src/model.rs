@@ -18,6 +18,7 @@ pub const DIFF_FILE_LIST: &str = "diff_file_list.txt";
 #[derive(Debug, Clone)]
 pub struct PullRequest {
     pub config_owner_repo: OwnerRepo,
+    pub pr_owner: Option<User>,
     pub title : String,
     pub pr_number : u64,
     pub ssh_url: Option<String>,
@@ -36,6 +37,7 @@ pub struct PullRequest {
 #[derive(Debug, Clone)]
 pub struct ValidatedPullRequest {
     pub config_owner_repo: OwnerRepo,
+    pub pr_owner: Option<User>,
     pub title : String,
     pub pr_number : u64,
     pub ssh_url: GitRepoSshUrl,

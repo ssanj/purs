@@ -201,6 +201,7 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
             Some(
               ValidatedPullRequest {
                 config_owner_repo: pr.config_owner_repo,
+                pr_owner: pr.pr_owner,
                 title : pr.title,
                 pr_number : pr.pr_number,
                 ssh_url: GitRepoSshUrl::new(ssh_url),
@@ -608,10 +609,12 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
                     let draft = pull.draft;
                     let created_at = pull.created_at;
                     let updated_at = pull.updated_at;
+                    let pr_owner = create_user(pull.user.clone());
 
                     let pr =
                       PullRequest {
                         config_owner_repo,
+                        pr_owner,
                         title,
                         pr_number: pr_no,
                         ssh_url,
@@ -651,6 +654,16 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
     } else {
       Err(PursError::MultipleErrors(pr_errors))
     }
+}
+
+//TODO: Move to From converter in model (octocrab::models::User -> User)
+fn create_user(user: Option<Box<octocrab::models::User>>) -> Option<User> {
+  user.map(|u| {
+    User::new(
+      u.login.clone(),
+      Url::from(u.avatar_url),
+      UserId::new(u.id.0))
+  })
 }
 
 
