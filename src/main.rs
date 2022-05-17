@@ -609,7 +609,7 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
                     let draft = pull.draft;
                     let created_at = pull.created_at;
                     let updated_at = pull.updated_at;
-                    let pr_owner = create_user(pull.user.clone());
+                    let pr_owner = create_user(pull.user.clone().as_deref());
 
                     let pr =
                       PullRequest {
@@ -656,14 +656,8 @@ async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>> {
     }
 }
 
-//TODO: Move to From converter in model (octocrab::models::User -> User)
-fn create_user(user: Option<Box<octocrab::models::User>>) -> Option<User> {
-  user.map(|u| {
-    User::new(
-      u.login.clone(),
-      Url::from(u.avatar_url),
-      UserId::new(u.id.0))
-  })
+fn create_user(user: Option<&octocrab::models::User>) -> Option<User> {
+  user.map(From::from)
 }
 
 
@@ -760,7 +754,7 @@ async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64)
 
     let comments =
       comments.into_iter().map(|c| {
-        let author = User::new(c.user.login, Url::from(c.user.avatar_url), UserId::new(c.user.id.0));
+        let author = User::from_comment(c.clone());
         let file_name = FileName::new(c.path);
 
         Comment {
