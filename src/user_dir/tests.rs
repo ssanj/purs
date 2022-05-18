@@ -24,5 +24,4 @@ fn creates_working_directory_if_not_found() {
   assert_eq!(result.unwrap(), WorkingDirectoryStatus::Created);
   assert_eq!(working_directory.working_directory_path().exists(), true);
   assert_eq!(working_directory.avatar_cache_dir().cache_path().exists(), true);
-
 }
