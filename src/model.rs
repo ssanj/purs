@@ -173,7 +173,8 @@ pub struct Config {
     pub avatar_cache_dir: AvatarCacheDirectory,
     pub repositories: NonEmptyVec<OwnerRepo>,
     pub token: GitHubToken,
-    pub script: Option<ScriptToRun>
+    pub script: Option<ScriptToRun>,
+    pub include_comments: bool
 }
 
 #[derive(Debug, Clone)]

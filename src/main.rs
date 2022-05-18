@@ -54,6 +54,8 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
 
   let working_dir_help_text = format!("Optional working directory. Defaults to USER_HOME/{}", DEFAULT_WORKING_DIR);
 
+  let comments_help_text = format!("Whether to generate comment files when there are comments. Not included by default.");
+
   let script_help: &str =
     "Optional script to run after cloning repository\n\
      Parameters to script:\n\
@@ -100,6 +102,12 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
             .long("wd")
             .takes_value(true)
             .help(working_dir_help_text.as_str())
+    )
+    .arg(
+        clap::Arg::new("comments")
+            .short('c')
+            .long("comments")
+            .help(comments_help_text.as_str())
     );
 
   let matches = app.get_matches();
@@ -165,13 +173,17 @@ fn cli() -> Result<Config, CommandLineArgumentFailure> {
       .ok_or_else( || CommandLineArgumentFailure::new("Could not find Github Personal Access Token"))
       .map(GitHubToken::new)?;
 
+
+    let include_comments = matches.is_present("comments");
+
     let config =
       Config {
         working_dir,
         avatar_cache_dir,
         repositories,
         token,
-        script
+        script,
+        include_comments
       };
 
     Ok(config)
@@ -245,11 +257,15 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
 
         clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
         write_diff_files(checkout_path.as_ref(), &pr.diffs)?;
-        let avatar_hash = get_avatars(&pr.comments, &config.avatar_cache_dir).await?;
-        let rendered_comments =
-          render_markdown_comments(&octocrab,  &pr.comments).await?;
 
-        write_comment_files(checkout_path.as_ref(), &rendered_comments, avatar_hash)?;
+        if config.include_comments {
+          let avatar_hash = get_avatars(&pr.comments, &config.avatar_cache_dir).await?;
+          let rendered_comments =
+            render_markdown_comments(&octocrab,  &pr.comments).await?;
+
+          write_comment_files(checkout_path.as_ref(), &rendered_comments, avatar_hash)?;
+        }
+
         match &config.script {
           Some(script) => {
             script_to_run(script, &checkout_path)?

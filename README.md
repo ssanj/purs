@@ -21,7 +21,7 @@ chmod +x <PURS_EXEC>
 
 In the later versions of macos, you can't just download and run an executable. Macos will complained that it hasn't been signed and won't allow you to open it.
 
-To get around this you can override this behaviour under under **System Preferences** > **Security & Privacy**. Select **App Store and identified developers** under allowed apps. If you ran `purs` and it was blocked, it should be listed here now. Chose to allow purs.
+To get around this you can override this behaviour under under **System Preferences** > **Security & Privacy**. Select **App Store and identified developers** under allowed apps. If you ran `purs` and it was blocked, it should be listed here now. Chose to allow purs. This [article](https://osxdaily.com/2021/08/30/fix-mac-app-cant-be-opened-because-it-was-not-downloaded-from-app-store-error/) from OSXDaily goes into more detail.
 
 If you don't want to do any of this jugglery (and who would blame you?), build `purs` from source.
 
