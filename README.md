@@ -72,7 +72,24 @@ This will display a list of up to twenty open pull requests from the repository 
 
 ![](pr-list.png)
 
-You can then use the **arrow keys** to select from the list and press **enter** to choose a pull request. If you want to quit you can press **q**. If you make a selection, `purs` will then do the following:
+You can then use the **arrow keys** to select from the list and press **enter** to choose a pull request. If you want to quit you can press **q**.
+
+The pull request summary line has some emojis which help in quickly showing you which ones to consider.
+
+| Emoji | Meaning |
+|-------|---------|
+| 👀 | PR has at least one review |
+| 💬 | PR has at least one comment |
+| 🔧 | PR is in **draft** |
+| 🦕 | PR is older than a week |
+| ✅ | PR has an approval. Has one ✅ per approval |
+| 🐕 | PR has at 11 - 20 changed files |
+| 🐘 | PR has at 21 - 40 changed files |
+| 🐳 | PR has more than 40 changed files |
+
+
+
+If you make a selection, `purs` will then do the following:
 
 - The PR branch will be cloned into a directory under your PURS_HOME directory. This defaults to `~/.purs` in the following format:
 
