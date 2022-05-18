@@ -36,3 +36,8 @@ pub fn get_or_create_working_dir(working_dir: &WorkingDirectory) -> Result<Worki
       }
     }
 }
+
+// ---------------------------------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests;

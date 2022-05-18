@@ -436,6 +436,10 @@ impl AvatarCacheDirectory {
   pub fn cache_path_as_string(&self) -> String {
     self.0.clone().to_string_lossy().to_string()
   }
+
+  pub fn cache_path(&self) -> &Path {
+    self.0.as_path()
+  }
 }
 
 impl fmt::Display for AvatarCacheDirectory {
@@ -468,6 +472,9 @@ impl WorkingDirectory {
     WorkingDirectory(working_dir.to_path_buf())
   }
 
+  pub fn working_directory_path(&self) -> &Path {
+    self.0.as_path()
+  }
 
   pub fn avatar_cache_dir(&self) -> AvatarCacheDirectory {
     let mut cache_dir = self.0.clone();
@@ -520,7 +527,7 @@ impl Display for GitHubToken {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct CommandLineArgumentFailure(String);
 
 impl Display for CommandLineArgumentFailure {
@@ -536,7 +543,7 @@ impl CommandLineArgumentFailure {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 
 pub enum WorkingDirectoryStatus {
   Exists,
@@ -888,8 +895,6 @@ pub enum CacheFileStatus {
   DoesNotExist
 }
 
-#[cfg(test)]
-mod tests;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AvatarInfo(UserId, Url, AvatarCacheDirectory);
@@ -917,3 +922,8 @@ impl fmt::Display for AvatarInfo {
         write!(f, "user_id:{}, avatar_url:{}, avatar_cache_dir:{}", self.0, self.1, self.2)
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests;
