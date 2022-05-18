@@ -99,7 +99,66 @@ If you make a selection, `purs` will then do the following:
 
 For example if the `README.md` file was updated, the diff file would be named `README.md.diff`
 
-- A comment file will be created for each file that has review comments associated with it. It will have the same name as the original file but with an additional `.comment` suffix. This will be a JSON file. You can choose to render this information how you see fit. If you use [Sublime Text](https://www.sublimetext.com/), see below for information on a plugin that already does this for you.
+- If the **comments** flag is set, a comment file will be created for each file that has review comments associated with it. It will have the same name as the original file but with an additional `.comment` suffix. This will be a JSON file.
+
+<details>
+    <summary>Sample JSON file</summary>
+
+```json
+{
+  "file_name": "modules/framework/Runner.scala",
+  "file_comments": [
+    {
+      "line": 192,
+      "file_name": "modules/framework/Runner.scala",
+      "file_line_comments": [
+        {
+          "user_name": "ABC",
+          "user_icon": "file:///PURS_HOME/.assets/.avatars/4439335.png",
+          "link": "https://github.com/owner/repo/pull/494#discussion_r820688697",
+          "line": 192,
+          "body": "comment text1",
+          "file_name": "modules/framework/Runner.scala"
+        },
+        {
+          "user_name": "YXZ",
+          "user_icon": "file:///PURS_HOME/.assets/.avatars/4439335.png",
+          "link": "https://github.com/owner/repo/pull/494#discussion_r825660578",
+          "line": 192,
+          "body": "comment text2",
+          "file_name": "modules/framework/Runner.scala"
+        }
+      ]
+    },
+    {
+      "line": 500,
+      "file_name": "modules/framework/Runner.scala",
+      "file_line_comments": [
+        {
+          "user_name": "AAA",
+          "user_icon": "file:///PURS_HOME/.assets/.avatars/4439335.png",
+          "link": "https://github.com/owner/repo/pull/494#discussion_r820688697",
+          "line": 500,
+          "body": "comment text3",
+          "file_name": "modules/framework/src-jvm/RunnerCompat.scala"
+        },
+        {
+          "user_name": "DES",
+          "user_icon": "file:///PURS_HOME/.assets/.avatars/4439335.png",
+          "link": "https://github.com/owner/repo/pull/494#discussion_r825660578",
+          "line": 500,
+          "body": "comment text4",
+          "file_name": "modules/framework/src-jvm/RunnerCompat.scala"
+        }
+      ]
+    }
+  ]
+}
+```
+</details>
+
+
+You can choose to render this information how you see fit. If you use [Sublime Text](https://www.sublimetext.com/), see [below](#comments-in-sublime-text) for information on a plugin that already does this for you.
 
 You can also supply multiple repositories along with a script to execute once the chosen pull request has been cloned and diffed.
 
@@ -118,7 +177,7 @@ echo "param2: $2"
 # Do some cool stuff here...
 ```
 
-#### Sublime Text
+#### Comments in Sublime Text
 
 If you use Sublime Text, you can install the [Ghomments plugin](https://github.com/ssanj/ghomments) to display the comments inline on the original file.
 
@@ -132,7 +191,7 @@ purs --help
 which yields:
 
 ```
-purs 0.3.8
+purs 0.3.9
 Sanj Sahayam
 List and checkout open Pull Requests on a GitHub repository
 
@@ -140,6 +199,9 @@ USAGE:
     purs [OPTIONS] --repo <repo>
 
 OPTIONS:
+    -c, --comments
+            Whether to generate comment files when there are comments. Not included by default.
+
     -h, --help
             Print help information
 
