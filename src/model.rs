@@ -437,6 +437,7 @@ impl AvatarCacheDirectory {
     self.0.clone().to_string_lossy().to_string()
   }
 
+  #[allow(dead_code)] //used by tests
   pub fn cache_path(&self) -> &Path {
     self.0.as_path()
   }
