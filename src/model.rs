@@ -11,7 +11,6 @@ use crate::tools::group_by;
 use octocrab::models::User as OctoUser;
 use octocrab::models::pulls::Comment as OctoComment;
 
-
 pub type R<T> = Result<T, PursError>;
 
 pub const DEFAULT_WORKING_DIR: &str = ".purs";
@@ -717,7 +716,6 @@ impl User {
       user_id
     }
   }
-
 
   pub fn gravatar_url(self) -> Url {
     self.gravatar

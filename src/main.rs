@@ -33,7 +33,7 @@ async fn main() {
 
   match cli() {
     Ok(config) => {
-      let program_result = handle_program( &config).await;
+      let program_result = handle_program(&config).await;
 
       match program_result {
         Ok(ProgramStatus::UserQuit) =>  println!("Goodbye!"),
