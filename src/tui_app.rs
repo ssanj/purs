@@ -19,7 +19,7 @@ use tui::{
     Frame, Terminal,
 };
 
-use crate::{console::*, model::{ValidatedPullRequest, PursError, UserInputError, R, ValidSelection, NestedError, Reviews, ReviewState}};
+use crate::{console::*, model::{ValidatedPullRequest, PursError, UserInputError, R, ValidSelection, NestedError, Reviews, ReviewState, User}};
 
 pub fn render_tui(items: Vec<ValidatedPullRequest>) -> R<ValidSelection> {
     // setup terminal
@@ -195,12 +195,15 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
 
   let draft = details_key_value("Draft", pr.draft.to_string());
 
+  let pr_owner = details_key_value("Owner", get_pr_owner(pr.pr_owner.clone()));
+
   vec![
     Spans::from(""),
     Spans::from(created_at),
     Spans::from(updated_at),
     Spans::from(owner_repo),
     Spans::from(title),
+    Spans::from(pr_owner),
     Spans::from(pr_no),
     Spans::from(pr_url),
     Spans::from(pr_repo),
@@ -214,6 +217,12 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
     Spans::from(draft),
   ]
 
+}
+
+fn get_pr_owner(owner_option: Option<User>) -> String {
+    owner_option
+      .map(|u| u.user_name())
+      .unwrap_or_else(|| "-".to_owned()) 
 }
 
 fn get_date_time<T: TimeZone>(date_time_option: Option<DateTime<T>>) -> String

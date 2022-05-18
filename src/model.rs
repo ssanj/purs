@@ -715,6 +715,9 @@ impl User {
     self.gravatar
   }
 
+  pub fn user_name(self) -> String {
+      self.name
+  }
 
   pub fn user_id(self) -> UserId {
     self.user_id
