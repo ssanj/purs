@@ -1,16 +1,9 @@
 # Purs
 
 
-## Issues
-
-- [ ] Create parent directory of diff, if it doesn't exist
-
-
 ## Design
 
 ### More Detail
-
-- Add the name of the user that created the PR to the detailed output
 - Possibly dump all the detailed information to a separate file like pr_details.txt
 
 ### Legend
@@ -30,7 +23,8 @@
 - Add a way to checkout the PR without the diffs or comments
   There seem to be two use cases here:
   - Check out the PR to review it (default -> Enter)
-  - Check out the PR to address review comments. (We don't want diffs and comments in this view)
+  - Check out the PR to address review comments. (We don't want diffs in this view)
+  - Pass through mode (edit/review) to supplied script
 - Possibly display a drop list of options in the TUI when you select a PR
 - Option to specify a PR number along with the user/repo and skip the TUI and download it directly
 - Option to download a branch by hash (obviously without any PR info, comments etc)
