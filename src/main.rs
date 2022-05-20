@@ -12,10 +12,10 @@ use std::fs::{File, self};
 use std::time::Instant;
 use tui_app::render_tui;
 use avatar::get_avatars;
-use tools::partition;
 use cli::cli;
 use github::{get_prs3, render_markdown_comments};
 use file_tools::{create_file_and_path, to_file_error, get_extract_path};
+use log::*;
 
 mod model;
 mod cli;
@@ -26,6 +26,7 @@ mod github;
 mod tools;
 mod file_tools;
 mod avatar;
+mod log;
 
 #[tokio::main]
 async fn main() {
@@ -208,6 +209,23 @@ fn clone_branch(ssh_url: GitRepoSshUrl, checkout_path: RepoCheckoutPath, branch_
     Ok(())
 }
 
+fn get_process_output(command: &mut Command) -> R<CmdOutput> {
+    let result =
+      command
+      .status()
+      .map_err(|e| PursError::ProcessError(NestedError::from(e)));
+
+    result.map(|r|{
+        if r.success() {
+            CmdOutput::Success
+        } else {
+            r.code()
+            .map(|c| CmdOutput::Failure(ExitCode::Code(c)))
+            .unwrap_or(CmdOutput::Failure(ExitCode::Terminated))
+        }
+    })
+}
+
 // TODO: Do we want the diff file to be configurable?
 fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
   println!("Generating diff files...");
@@ -275,40 +293,4 @@ fn write_comment_files(checkout_path: &str, comments: &Comments, avatar_hash: Ha
   }
 
   Ok(())
-}
-
-fn get_process_output(command: &mut Command) -> R<CmdOutput> {
-    let result =
-      command
-      .status()
-      .map_err(|e| PursError::ProcessError(NestedError::from(e)));
-
-    result.map(|r|{
-        if r.success() {
-            CmdOutput::Success
-        } else {
-            r.code()
-            .map(|c| CmdOutput::Failure(ExitCode::Code(c)))
-            .unwrap_or(CmdOutput::Failure(ExitCode::Terminated))
-        }
-    })
-
-}
-
-pub fn print_error(message: String) {
-  let coloured_error = Colour::Red.paint(format!("Error: {}", message));
-  println!("{}", coloured_error)
-}
-
-pub fn print_info(message: String) {
-  let coloured_info = Colour::Green.paint(message);
-  println!("{}", coloured_info)
-}
-
-
-fn log_errors(message: &str, errors: Vec<PursError>) {
-  println!("{}", message);
-  errors.into_iter().for_each(|e| {
-    eprintln!("  {}", e)
-  })
 }
