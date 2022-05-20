@@ -113,14 +113,8 @@ pub async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>
 
     let results_with_errors: Vec<R<PullRequest>> = pr_stream.collect().await;
 
-    let mut pr_errors: Vec<PursError> = vec![];
-    let mut pr_successes: Vec<PullRequest> = vec![];
-
     //TODO: Replace with partition
-    results_with_errors.into_iter().for_each(|r| match r {
-      Ok(pr) => pr_successes.push(pr),
-      Err(e) => pr_errors.push(e),
-    });
+   let (pr_successes, pr_errors, ) = partition(results_with_errors);
 
     if pr_errors.is_empty() {
       Ok(pr_successes)
