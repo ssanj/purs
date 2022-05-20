@@ -162,17 +162,24 @@ You can choose to render this information how you see fit. If you use [Sublime T
 
 You can also supply multiple repositories along with a script to execute once the chosen pull request has been cloned and diffed.
 
-If a script will specified it will be called with two parameters:
+If a script will specified it will be called with following parameters:
 1. The directory the pull request was checked out to
-1. The name of the diff file that holds the changed file names
+1. The the mode edit/review
+1. If the mode is review, the name of the diff file that holds the changed file names
 
 #### Example Script
 
 ```bash
 #!/bin/bash
 
-echo "param1: $1"
-echo "param2: $2"
+echo "param1: $1" # checkout path
+echo "param2: $2" # mode (edit/review)
+
+if [ "$2" == "review" ]; then
+  echo "param3: $3" # only sent if the mode is review
+else
+  echo "no param3 for you"
+fi
 
 # Do some cool stuff here...
 ```

@@ -931,12 +931,21 @@ pub enum Mode {
 impl fmt::Display for Mode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
       let result = match self {
-        Mode::Review =>  "Mode.Review",
-        Mode::Edit => "Mode.Edit"
+        Mode::Review =>  "Reviewing mode",
+        Mode::Edit => "Editing mode"
       };
 
       write!(f, "{}", result)
     }
+}
+
+impl Mode {
+  pub fn short_string(&self) -> String {
+    match self {
+      Mode::Review => "review".to_owned(),
+      Mode::Edit => "edit".to_owned()
+    }
+  }
 }
 
 

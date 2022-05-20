@@ -253,27 +253,29 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
       ValidSelection::Pr(mode, pr ) => {
         let ssh_url = pr.ssh_url.clone();
         let checkout_path = RepoCheckoutPath::new(get_extract_path(config, &pr)?);
-        let branch_name = pr.branch_name;
+        let branch_name = pr.branch_name.clone();
 
         println!("mode: {}", mode);
 
-        clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
-        write_diff_files(checkout_path.as_ref(), &pr.diffs)?;
-
-        if config.include_comments {
-          let avatar_hash = get_avatars(&pr.comments, &config.avatar_cache_dir).await?;
-          let rendered_comments =
-            render_markdown_comments(&octocrab,  &pr.comments).await?;
-
-          write_comment_files(checkout_path.as_ref(), &rendered_comments, avatar_hash)?;
-        }
+        match mode {
+          Mode::Review => {
+            clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
+            write_diff_files(checkout_path.as_ref(), &pr.diffs)?;
+            handle_comment_generation(octocrab.clone(), config, (*pr).clone(), checkout_path.clone()).await?;
+          },
+          Mode::Edit => {
+            clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
+            handle_comment_generation(octocrab.clone(), config, (*pr).clone(), checkout_path.clone()).await?;
+          },
+        };
 
         match &config.script {
           Some(script) => {
-            script_to_run(script, &checkout_path)?
+            script_to_run(script, &mode, &checkout_path)?
           },
           None => {
             println!();
+            println!("Mode: {}", mode);
             println!("Checkout path: {}", checkout_path);
             println!("Diff file: {}", DIFF_FILE_LIST);
           }
@@ -284,11 +286,27 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
     }
 }
 
-fn script_to_run(script: &ScriptToRun, checkout_path: &RepoCheckoutPath) -> R<()> {
-   let mut command = Command::new(script.to_string());
-   command
+async fn handle_comment_generation(octocrab: Octocrab, config: &Config, pr: ValidatedPullRequest, checkout_path: RepoCheckoutPath) -> R<()> {
+  if config.include_comments {
+    let avatar_hash = get_avatars(&pr.comments, &config.avatar_cache_dir).await?;
+    let rendered_comments =
+      render_markdown_comments(&octocrab,  &pr.comments).await?;
+
+    write_comment_files(checkout_path.as_ref(), &rendered_comments, avatar_hash)?;
+  }
+
+  Ok(())
+}
+
+fn script_to_run(script: &ScriptToRun, mode: &Mode, checkout_path: &RepoCheckoutPath) -> R<()> {
+  let mut command = Command::new(script.to_string());
+  command
     .arg(checkout_path.to_string()) //arg1 -> checkout dir
-    .arg(DIFF_FILE_LIST); //arg2 -> diff file list
+    .arg(mode.short_string()); //arg2 -> mode
+
+   if let Mode::Review = mode {
+      command.arg(DIFF_FILE_LIST); //arg3 -> diff file list
+   };
 
    match command.status() {
     Ok(exit_status) => {
