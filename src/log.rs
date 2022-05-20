@@ -11,7 +11,7 @@ pub fn print_info(message: String) {
   println!("{}", coloured_info)
 }
 
-pub fn log_errors(message: &str, errors: Vec<PursError>) {
+pub fn print_errors(message: &str, errors: Vec<PursError>) {
   print_error(message.to_owned());
   errors.into_iter().for_each(|e| {
     print_error(format!("  {}", e))

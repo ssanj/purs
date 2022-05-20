@@ -5,7 +5,7 @@ use tokio::fs::File;
 use crate::tools::partition;
 use std::collections::{HashMap, HashSet};
 use futures::future::{try_join_all, join_all};
-use crate::log::log_errors;
+use crate::log::print_errors;
 
 pub async fn get_url_data(url: Url) -> R<(Url, Vec<u8>)> {
     println!("downloading data for url: {:?}", url);
@@ -119,7 +119,7 @@ pub async fn get_avatars(comments: &Comments, avatar_cache_directory: &AvatarCac
     partition(url_data_results_with_errors);
 
   if !errors.is_empty() {
-    log_errors("get_avatars got the following errors:", errors)
+    print_errors("get_avatars got the following errors:", errors)
   }
 
   Ok(url_data_results.into_iter().collect())
