@@ -1,17 +1,14 @@
 use octocrab::{self, OctocrabBuilder, Octocrab};
 use crate::model::*;
-use std::collections::{HashMap};
-use std::io::{self, Write, ErrorKind};
-use std::path::Path;
-use std::fs::{File, self};
 
 use std::time::Instant;
 use tui_app::render_tui;
 use avatar::get_avatars;
 use cli::cli;
 use github::{get_prs3, render_markdown_comments};
-use file_tools::{create_file_and_path, to_file_error, get_extract_path};
 use process::{script_to_run, clone_branch};
+use file_tools::get_extract_path;
+use file_writer::{write_diff_files, write_comment_files};
 
 mod model;
 mod cli;
@@ -24,6 +21,7 @@ mod file_tools;
 mod avatar;
 mod log;
 mod process;
+mod file_writer;
 
 #[tokio::main]
 async fn main() {
@@ -148,74 +146,4 @@ async fn handle_comment_generation(octocrab: Octocrab, config: &Config, pr: Vali
 
 fn handle_user_selection_tui(pulls: Vec<ValidatedPullRequest>) -> R<ValidSelection> {
   render_tui(pulls)
-}
-
-
-// TODO: Do we want the diff file to be configurable?
-fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
-  println!("Generating diff files...");
-
-  let write_start = Instant::now();
-
-  let file_list_path = Path::new(checkout_path).join(DIFF_FILE_LIST);
-  // TODO: Do we want to wrap this error?
-  let mut file_list = File::create(&file_list_path) .unwrap();
-
-  diffs.0.iter().for_each(|d| {
-      writeln!(file_list, "{}.diff", d.file_name).unwrap(); // TODO: Do we want to wrap this error?
-
-      let diff_file_name = format!("{}.diff", d.file_name);
-      let diff_file = Path::new(checkout_path).join(&diff_file_name);
-
-      let mut f = create_file_and_path(&diff_file).unwrap();
-
-      println!("Creating {}", &diff_file_name);
-      let buf: &[u8]= d.contents.as_ref();
-      f.write_all(buf)
-        .map_err(|e| {
-          to_file_error(
-            &format!(
-              "Could not write diff_file contents: \n{}",
-              std::str::from_utf8(buf)
-                .unwrap_or("<Could not retrieve content due to a UTF8 decoding error>")
-                ), e)
-          })
-        .unwrap();
-  });
-
-  let time_taken = write_start.elapsed().as_millis();
-  println!("Writing diff files took {} ms", time_taken);
-
-  Ok(())
-}
-
-
-fn write_comment_files(checkout_path: &str, comments: &Comments, avatar_hash: HashMap<Url, FileUrl>) -> R<()> {
-  if !comments.is_empty() {
-    println!("Generating comment files...");
-
-    let write_start = Instant::now();
-
-    let file_comments_json = CommentJson::grouped_by_line_2(comments.clone(), avatar_hash);
-
-    file_comments_json.into_iter().for_each(|file_comments_json|{
-      let comment_file_name = format!("{}.comment", file_comments_json.file_name);
-      let comment_file = Path::new(checkout_path).join(&comment_file_name);
-
-      match serde_json::to_string_pretty(&file_comments_json) {
-        Ok(contents) => {
-          let mut cf = File::create(&comment_file).unwrap(); // TODO: Do we want to wrap this error?
-          println!("Creating {}", &comment_file_name);
-          let buf: &[u8]= contents.as_ref();
-          cf.write_all(buf).unwrap(); // TODO: Do we want to wrap this error?
-        },
-        Err(error) => eprintln!("Could not created comment file {}: {}", comment_file.to_string_lossy(), error)
-      }
-    });
-
-    let time_taken = write_start.elapsed().as_millis();
-    println!("Writing comment files took {} ms", time_taken);
-  }
-
-  Ok(())
 }

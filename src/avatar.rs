@@ -4,7 +4,7 @@ use tokio::{io::{self, AsyncWriteExt}, fs::OpenOptions};
 use tokio::fs::File;
 use crate::tools::partition;
 use std::collections::{HashMap, HashSet};
-use futures::future::{try_join_all, join_all};
+use futures::future::try_join_all;
 use crate::log::print_errors;
 
 pub async fn get_url_data(url: Url) -> R<(Url, Vec<u8>)> {

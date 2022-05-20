@@ -8,7 +8,7 @@ use unidiff::PatchSet;
 use futures::stream::{self, StreamExt};
 use crate::tools::partition;
 use std::time::Instant;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 type PageHandles = Vec<tokio::task::JoinHandle<Result<(octocrab::Page<octocrab::models::pulls::PullRequest>, OwnerRepo), PursError>>>;
 
