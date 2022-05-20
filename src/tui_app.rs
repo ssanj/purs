@@ -141,7 +141,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ValidatedPullRequest>)
     let text =
       selected
         .map_or(
-          no_pr_details("Select a PR to view its details"),
+          no_pr_details(),
           pr_details
         );
 
@@ -161,16 +161,26 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ValidatedPullRequest>)
 }
 
 
-fn no_pr_details(message: &str) -> Vec<Spans> {
-  let style = Style::default().fg(Color::Yellow);
+fn no_pr_details<'a>() -> Vec<Spans<'a>> {
   vec![
-    Spans::from(
-      vec![
-      Span::styled(message, style)
-      ]
-    )
+    help_line("How to to use purs"),
+    help_line("------------------"),
+    help_line("'Up'/'Down' arrows to select a PR"),
+    help_line("'Left' arrow to unselect a PR and view this menu"),
+    help_line("'Enter' to checkout a PR for reviewing"),
+    help_line("'e' to checkout a PR for editing"),
+    help_line("'q' to quit"),
   ]
 }
+
+fn help_line(message: &str) -> Spans {
+  let style = Style::default().fg(Color::Yellow);
+    Spans::from(
+      vec![
+       Span::styled(message, style)
+     ]
+    )
+  }
 
 fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
 
