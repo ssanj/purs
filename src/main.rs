@@ -14,7 +14,7 @@ use tui_app::render_tui;
 use avatar::get_or_create_avatar_file;
 use tools::partition;
 use cli::cli;
-use github::get_prs3;
+use github::{get_prs3, render_markdown_comments};
 
 mod model;
 mod cli;
@@ -93,13 +93,6 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
     let time_taken = pr_start.elapsed().as_millis();
 
     println!("GH API calls took {} ms", time_taken);
-
-    // let pull_requests = get_dummy_prs();
-    // let selection_size = pull_requests.len();
-
-    // for (index, pr) in pull_requests.clone().into_iter().enumerate() {
-    //     println!("{:>2} - {}", index + 1, pr);
-    // }
 
     let valid_selection = handle_user_selection_tui(pull_requests.clone())?;
     match valid_selection {
@@ -183,54 +176,6 @@ fn handle_user_selection_tui(pulls: Vec<ValidatedPullRequest>) -> R<ValidSelecti
   render_tui(pulls)
 }
 
-// fn handle_user_selection(selection_size: usize, selection_options: &[ValidatedPullRequest]) -> R<ValidSelection> {
-//   match read_user_response("Please select a PR to clone to 'q' to exit", selection_size) {
-//     Ok(response) => {
-//         match response {
-//             UserSelection::Number(selection) => {
-//                 let selected = selection_options.get(usize::from(selection - 1)).unwrap();
-//                 Ok(ValidSelection::Pr(selected.clone()))
-//             },
-//             UserSelection::Quit => {
-//               Ok(ValidSelection::Quit)
-//             },
-//         }
-//     },
-//     Err(e) => Err(PursError::UserError(e))
-//   }
-// }
-
-
-// fn read_user_response(question: &str, limit: usize) -> Result<UserSelection, UserInputError> {
-//   println!("{}", question);
-//   let mut buffer = String::new();
-//   let stdin = io::stdin();
-//   let mut handle = stdin.lock();
-//   handle.read_line(&mut buffer).expect("Could not read from input");
-
-//   let line = buffer.lines().next().expect("Could not extract line");
-
-//   match line {
-//      "q" | "Q" => Ok(UserSelection::Quit),
-//      num =>
-//         num.parse::<u8>()
-//         .map_err( |_| UserInputError::InvalidNumber(num.to_string()))
-//         .and_then(|n| {
-//             let input = usize::from(n);
-//             if  input == 0 || input > limit {
-//                 Err(
-//                     UserInputError::InvalidSelection {
-//                         selected: n,
-//                         min_selection: 1,
-//                         max_selection: limit
-//                     }
-//                 )
-//             } else {
-//                 Ok(UserSelection::Number(n))
-//             }
-//         }),
-//   }
-// }
 
 fn clone_branch(ssh_url: GitRepoSshUrl, checkout_path: RepoCheckoutPath, branch_name: RepoBranchName) -> R<()> {
     print_info(format!("git clone {} -b {} {}", ssh_url, branch_name, checkout_path));
@@ -421,66 +366,6 @@ pub fn print_info(message: String) {
   println!("{}", coloured_info)
 }
 
-//TODO check for unnecessary memory allocations
-async fn render_markdown_comments(octocrab: &Octocrab, comments: &Comments) -> R<Comments> {
-  let md_start = Instant::now();
-
-  let cs = comments.clone();
-  let handles = cs.comments.into_iter().map(|c|{
-      tokio::task::spawn({
-        render_markdown(octocrab.clone(), c.body.clone()).map(|r| {
-          // can we bimap? Why does this work and r.map doesn't because of a move?
-         match r {
-          Ok(value) => Ok((c, value)),
-          Err(e) => Err(e)
-         }
-        })
-      })
-  });
-
-  let nested_results_vec = join_all(handles).await;
-
-  let results = nested_results_vec.into_iter().map(|vr| {
-    flatten_results(vr, PursError::from)
-  });
-
-  let mut comment_map: HashMap<CommentId, Comment> = HashMap::new();
-
-  comments.comments.iter().for_each(|c| {
-    let _ = comment_map.insert(c.comment_id.clone(), c.clone());
-  });
-
-  results.into_iter().for_each(|r| {
-    //We found an update for the markdown body
-    //We ignore errors - we try our best for markdown bodies but don't fail
-    if let Ok((c, c_updated)) = r {
-      let _ = comment_map.insert(c.comment_id.clone(), c.update_markdown_body(c_updated));
-    }
-  });
-
-  let time_taken = md_start.elapsed().as_millis();
-  println!("GH markdown calls took {} ms", time_taken);
-
-  Ok(
-    Comments {
-      comments: comment_map.into_values().collect()
-    }
-  )
-}
-
-fn flatten_results<T, E, E2, F>(nested_results: Result<Result<T, E>, E2>, f: F) -> Result<T, E>
-  where F: FnOnce(E2) -> E
-{
-  nested_results.map_err(f).and_then(std::convert::identity)
-}
-
-async fn render_markdown(octocrab: Octocrab, content: String) -> R<String> {
-  octocrab
-    .markdown()
-    .render_raw(content)
-    .await
-    .map_err(PursError::from)
-}
 
 async fn get_avatars(comments: &Comments, avatar_cache_directory: &AvatarCacheDirectory) -> R<HashMap<Url, FileUrl>> {
   let mut unique_gravatar_urls: HashSet<AvatarInfo> = HashSet::new();

@@ -1,5 +1,5 @@
 use futures::FutureExt;
-use futures::future::{try_join_all};
+use futures::future::{try_join_all, join_all};
 use octocrab::{self, Octocrab};
 use octocrab::params;
 use octocrab::models::pulls::ReviewState as GHReviewState;
@@ -7,6 +7,8 @@ use crate::model::*;
 use unidiff::PatchSet;
 use futures::stream::{self, StreamExt};
 use crate::tools::partition;
+use std::time::Instant;
+use std::collections::{HashMap, HashSet};
 
 type PageHandles = Vec<tokio::task::JoinHandle<Result<(octocrab::Page<octocrab::models::pulls::PullRequest>, OwnerRepo), PursError>>>;
 
@@ -127,6 +129,53 @@ pub async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>
     }
 }
 
+//TODO check for unnecessary memory allocations
+pub async fn render_markdown_comments(octocrab: &Octocrab, comments: &Comments) -> R<Comments> {
+  let md_start = Instant::now();
+
+  let cs = comments.clone();
+  let handles = cs.comments.into_iter().map(|c|{
+      tokio::task::spawn({
+        render_markdown(octocrab.clone(), c.body.clone()).map(|r| {
+          // can we bimap? Why does this work and r.map doesn't because of a move?
+         match r {
+          Ok(value) => Ok((c, value)),
+          Err(e) => Err(e)
+         }
+        })
+      })
+  });
+
+  let nested_results_vec = join_all(handles).await;
+
+  let results = nested_results_vec.into_iter().map(|vr| {
+    flatten_results(vr, PursError::from)
+  });
+
+  let mut comment_map: HashMap<CommentId, Comment> = HashMap::new();
+
+  comments.comments.iter().for_each(|c| {
+    let _ = comment_map.insert(c.comment_id.clone(), c.clone());
+  });
+
+  results.into_iter().for_each(|r| {
+    //We found an update for the markdown body
+    //We ignore errors - we try our best for markdown bodies but don't fail
+    if let Ok((c, c_updated)) = r {
+      let _ = comment_map.insert(c.comment_id.clone(), c.update_markdown_body(c_updated));
+    }
+  });
+
+  let time_taken = md_start.elapsed().as_millis();
+  println!("GH markdown calls took {} ms", time_taken);
+
+  Ok(
+    Comments {
+      comments: comment_map.into_values().collect()
+    }
+  )
+}
+
 async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u64) -> R<Reviews> {
     let gh_reviews =
         octocrab
@@ -160,8 +209,6 @@ async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u6
       }
     )
 }
-
-
 
 
 async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64) -> R<Comments> {
@@ -271,4 +318,19 @@ async fn get_pulls(octocrab: Octocrab, owner_repo: OwnerRepo) -> R<octocrab::Pag
       .send()
       .await
       .map_err( PursError::from)
+}
+
+
+async fn render_markdown(octocrab: Octocrab, content: String) -> R<String> {
+  octocrab
+    .markdown()
+    .render_raw(content)
+    .await
+    .map_err(PursError::from)
+}
+
+fn flatten_results<T, E, E2, F>(nested_results: Result<Result<T, E>, E2>, f: F) -> Result<T, E>
+  where F: FnOnce(E2) -> E
+{
+  nested_results.map_err(f).and_then(std::convert::identity)
 }
