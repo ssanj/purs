@@ -15,6 +15,7 @@ use avatar::get_or_create_avatar_file;
 use tools::partition;
 use cli::cli;
 use github::{get_prs3, render_markdown_comments};
+use file_tools::{create_file_and_path, to_file_error, get_extract_path};
 
 mod model;
 mod cli;
@@ -23,6 +24,7 @@ mod console;
 mod tui_app;
 mod github;
 mod tools;
+mod file_tools;
 mod avatar;
 
 #[tokio::main]
@@ -244,52 +246,6 @@ fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
   Ok(())
 }
 
-fn to_file_error(error_message: &str, error: io::Error) -> PursError {
-    PursError::FileError(error_message.to_owned(), NestedError::from(error))
-}
-
-fn create_file_and_path(file: &Path) -> R<File> {
-  let file_creation_result = File::create(file);
-  match file_creation_result {
-    Ok(f) => Ok(f),
-    Err(e) => try_create_parent_directories(file, e)
-  }
-}
-
-fn try_create_parent_directories(file: &Path, e: io::Error) -> R<File> {
-  match e.kind() {
-    ErrorKind::NotFound => {
-      match file.parent() {
-        Some(parent_dir) => {
-            fs::create_dir_all(parent_dir)
-              .and_then(|_| File::create(file))
-              .map_err(|e| {
-            let error_message = format!("Could not created file: {}", get_file_name(file));
-            to_file_error(&error_message, e)
-          })
-        },
-        None => {
-          return Err(
-            to_file_error(
-              &format!("Could not create file because it does not have a parent directory: {}", get_file_name(file)),
-              e
-            ))
-        }
-      }
-    },
-    _ => {
-      return Err(
-        to_file_error(
-          &format!("Could not create file: {}", get_file_name(file)),
-          e
-      ))
-    }
-  }
-}
-
-fn get_file_name(file_path: &Path) -> String {
-  file_path.to_string_lossy().to_string()
-}
 
 fn write_comment_files(checkout_path: &str, comments: &Comments, avatar_hash: HashMap<Url, FileUrl>) -> R<()> {
   if !comments.is_empty() {
@@ -339,23 +295,6 @@ fn get_process_output(command: &mut Command) -> R<CmdOutput> {
 
 }
 
-fn get_extract_path(config: &Config, pull: &ValidatedPullRequest) -> R<String> {
-    let repo_name = pull.repo_name.clone();
-    let branch_name = pull.branch_name.clone();
-    let separator = format!("{}", std::path::MAIN_SEPARATOR);
-    let extraction_path =
-      vec![
-        config.working_dir.to_string(),
-        repo_name.to_string(),
-        branch_name.to_string(),
-        pull.pr_number.to_string(),
-        pull.head_sha.clone()
-      ].join(&separator);
-
-    Ok(extraction_path)
-}
-
-
 pub fn print_error(message: String) {
   let coloured_error = Colour::Red.paint(format!("Error: {}", message));
   println!("{}", coloured_error)
@@ -399,13 +338,6 @@ async fn get_avatars(comments: &Comments, avatar_cache_directory: &AvatarCacheDi
   Ok(url_data_results.into_iter().collect())
 }
 
-fn log_errors(message: &str, errors: Vec<PursError>) {
-  println!("{}", message);
-  errors.into_iter().for_each(|e| {
-    eprintln!("  {}", e)
-  })
-}
-
 async fn get_avatar_from_cache(avatar_info: AvatarInfo) -> R<(Url, FileUrl)> {
   get_or_create_avatar_file(
     &avatar_info
@@ -413,5 +345,12 @@ async fn get_avatar_from_cache(avatar_info: AvatarInfo) -> R<(Url, FileUrl)> {
   .await
   .map(|file_url|{
     (avatar_info.avatar_url(), file_url)
+  })
+}
+
+fn log_errors(message: &str, errors: Vec<PursError>) {
+  println!("{}", message);
+  errors.into_iter().for_each(|e| {
+    eprintln!("  {}", e)
   })
 }
