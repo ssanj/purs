@@ -10,7 +10,7 @@ pub fn cli() -> Result<Config, CommandLineArgumentFailure> {
 
   let working_dir_help_text = format!("Optional working directory. Defaults to USER_HOME/{}", DEFAULT_WORKING_DIR);
 
-  let comments_help_text = format!("Whether to generate comment files when there are comments. Not included by default.");
+  let comments_help_text = "Whether to generate comment files when there are comments. Not included by default.".to_owned();
 
   let script_help: &str =
     "Optional script to run after cloning repository\n\
