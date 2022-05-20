@@ -1,12 +1,8 @@
-use futures::FutureExt;
-use futures::future::{try_join_all, join_all};
 use octocrab::{self, OctocrabBuilder, Octocrab};
 use crate::model::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use std::io::{self, Write, ErrorKind};
 use std::path::Path;
-use std::process::Command;
-use ansi_term::Colour;
 use std::fs::{File, self};
 
 use std::time::Instant;
@@ -15,7 +11,7 @@ use avatar::get_avatars;
 use cli::cli;
 use github::{get_prs3, render_markdown_comments};
 use file_tools::{create_file_and_path, to_file_error, get_extract_path};
-use log::*;
+use process::{script_to_run, clone_branch};
 
 mod model;
 mod cli;
@@ -27,6 +23,7 @@ mod tools;
 mod file_tools;
 mod avatar;
 mod log;
+mod process;
 
 #[tokio::main]
 async fn main() {
@@ -148,83 +145,11 @@ async fn handle_comment_generation(octocrab: Octocrab, config: &Config, pr: Vali
   Ok(())
 }
 
-fn script_to_run(script: &ScriptToRun, mode: &Mode, checkout_path: &RepoCheckoutPath) -> R<()> {
-  let mut command = Command::new(script.to_string());
-  command
-    .arg(checkout_path.to_string()) //arg1 -> checkout dir
-    .arg(mode.short_string()); //arg2 -> mode
-
-   if let Mode::Review = mode {
-      command.arg(DIFF_FILE_LIST); //arg3 -> diff file list
-   };
-
-   match command.status() {
-    Ok(exit_status) => {
-      if exit_status.success() {
-        Ok(())
-      } else {
-        Err(
-          PursError::ScriptExecutionError(ScriptErrorType::NonZeroResult(exit_status.to_string()))
-        )
-      }
-    },
-    Err(error) =>
-      Err(
-          PursError::ScriptExecutionError(ScriptErrorType::Error(NestedError::from(error)))
-      )
-  }
-}
 
 fn handle_user_selection_tui(pulls: Vec<ValidatedPullRequest>) -> R<ValidSelection> {
   render_tui(pulls)
 }
 
-
-fn clone_branch(ssh_url: GitRepoSshUrl, checkout_path: RepoCheckoutPath, branch_name: RepoBranchName) -> R<()> {
-    print_info(format!("git clone {} -b {} {}", ssh_url, branch_name, checkout_path));
-    let mut command = Command::new("git") ;
-      command
-      .arg("clone")
-      .arg(ssh_url)
-      .arg("-b")
-      .arg(branch_name.as_ref())
-      .arg(checkout_path.as_ref());
-
-    let git_clone_result = get_process_output(&mut command);
-
-    let _ = match git_clone_result {
-      Ok(CmdOutput::Success) => {}, //Success will be returned at the end of the function
-      Ok(CmdOutput::Failure(exit_code)) => {
-          match exit_code {
-              ExitCode::Code(code) => return Err(PursError::GitError(format!("Git exited with exit code: {}", code))),
-              ExitCode::Terminated => return Err(PursError::GitError("Git was terminated".to_string())),
-          }
-      },
-      Err(e2) => {
-        let e1 = PursError::GitError("Error running Git".to_string());
-        return Err(PursError::MultipleErrors(vec![e1, e2]))
-      },
-    };
-
-    Ok(())
-}
-
-fn get_process_output(command: &mut Command) -> R<CmdOutput> {
-    let result =
-      command
-      .status()
-      .map_err(|e| PursError::ProcessError(NestedError::from(e)));
-
-    result.map(|r|{
-        if r.success() {
-            CmdOutput::Success
-        } else {
-            r.code()
-            .map(|c| CmdOutput::Failure(ExitCode::Code(c)))
-            .unwrap_or(CmdOutput::Failure(ExitCode::Terminated))
-        }
-    })
-}
 
 // TODO: Do we want the diff file to be configurable?
 fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
