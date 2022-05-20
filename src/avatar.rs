@@ -5,6 +5,7 @@ use tokio::fs::File;
 use crate::tools::partition;
 use std::collections::{HashMap, HashSet};
 use futures::future::{try_join_all, join_all};
+use crate::log::log_errors;
 
 pub async fn get_url_data(url: Url) -> R<(Url, Vec<u8>)> {
     println!("downloading data for url: {:?}", url);
@@ -131,14 +132,6 @@ async fn get_avatar_from_cache(avatar_info: AvatarInfo) -> R<(Url, FileUrl)> {
   .await
   .map(|file_url|{
     (avatar_info.avatar_url(), file_url)
-  })
-}
-
-//TODO: Move to logging module
-fn log_errors(message: &str, errors: Vec<PursError>) {
-  println!("{}", message);
-  errors.into_iter().for_each(|e| {
-    eprintln!("  {}", e)
   })
 }
 
