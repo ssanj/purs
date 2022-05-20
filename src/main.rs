@@ -11,7 +11,7 @@ use std::fs::{File, self};
 
 use std::time::Instant;
 use tui_app::render_tui;
-use avatar::get_or_create_avatar_file;
+use avatar::get_avatars;
 use tools::partition;
 use cli::cli;
 use github::{get_prs3, render_markdown_comments};
@@ -305,48 +305,6 @@ pub fn print_info(message: String) {
   println!("{}", coloured_info)
 }
 
-
-async fn get_avatars(comments: &Comments, avatar_cache_directory: &AvatarCacheDirectory) -> R<HashMap<Url, FileUrl>> {
-  let mut unique_gravatar_urls: HashSet<AvatarInfo> = HashSet::new();
-  comments.comments.iter().for_each(|c| {
-    let avatar =
-      AvatarInfo::new(
-        c.author.clone().user_id(),
-        c.author.clone().gravatar_url(),
-        avatar_cache_directory.clone()
-      );
-
-    unique_gravatar_urls.insert(avatar);
-  });
-
-  let url_data_handles = unique_gravatar_urls.into_iter().map(|u| {
-    tokio::task::spawn(get_avatar_from_cache(u))
-  });
-
-  let url_data_results_with_errors =
-    try_join_all(url_data_handles)
-    .await
-    .map_err(PursError::from)?;
-
-  let (url_data_results, errors) =
-    partition(url_data_results_with_errors);
-
-  if !errors.is_empty() {
-    log_errors("get_avatars got the following errors:", errors)
-  }
-
-  Ok(url_data_results.into_iter().collect())
-}
-
-async fn get_avatar_from_cache(avatar_info: AvatarInfo) -> R<(Url, FileUrl)> {
-  get_or_create_avatar_file(
-    &avatar_info
-  )
-  .await
-  .map(|file_url|{
-    (avatar_info.avatar_url(), file_url)
-  })
-}
 
 fn log_errors(message: &str, errors: Vec<PursError>) {
   println!("{}", message);

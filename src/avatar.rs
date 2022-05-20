@@ -1,7 +1,10 @@
 use futures::TryFutureExt;
-use crate::{model::{Url, PursError, R, NestedError, AvatarCacheFile, CacheFileStatus, FileUrl, AvatarCreationErrorType, AvatarInfo}};
+use crate::model::*;
 use tokio::{io::{self, AsyncWriteExt}, fs::OpenOptions};
 use tokio::fs::File;
+use crate::tools::partition;
+use std::collections::{HashMap, HashSet};
+use futures::future::{try_join_all, join_all};
 
 pub async fn get_url_data(url: Url) -> R<(Url, Vec<u8>)> {
     println!("downloading data for url: {:?}", url);
@@ -89,6 +92,57 @@ pub async fn save_avatar_data(avatar_cache_file: &AvatarCacheFile, avatar_data: 
   Ok(())
 }
 
+pub async fn get_avatars(comments: &Comments, avatar_cache_directory: &AvatarCacheDirectory) -> R<HashMap<Url, FileUrl>> {
+  let mut unique_gravatar_urls: HashSet<AvatarInfo> = HashSet::new();
+  comments.comments.iter().for_each(|c| {
+    let avatar =
+      AvatarInfo::new(
+        c.author.clone().user_id(),
+        c.author.clone().gravatar_url(),
+        avatar_cache_directory.clone()
+      );
+
+    unique_gravatar_urls.insert(avatar);
+  });
+
+  let url_data_handles = unique_gravatar_urls.into_iter().map(|u| {
+    tokio::task::spawn(get_avatar_from_cache(u))
+  });
+
+  let url_data_results_with_errors =
+    try_join_all(url_data_handles)
+    .await
+    .map_err(PursError::from)?;
+
+  let (url_data_results, errors) =
+    partition(url_data_results_with_errors);
+
+  if !errors.is_empty() {
+    log_errors("get_avatars got the following errors:", errors)
+  }
+
+  Ok(url_data_results.into_iter().collect())
+}
+
+async fn get_avatar_from_cache(avatar_info: AvatarInfo) -> R<(Url, FileUrl)> {
+  get_or_create_avatar_file(
+    &avatar_info
+  )
+  .await
+  .map(|file_url|{
+    (avatar_info.avatar_url(), file_url)
+  })
+}
+
+//TODO: Move to logging module
+fn log_errors(message: &str, errors: Vec<PursError>) {
+  println!("{}", message);
+  errors.into_iter().for_each(|e| {
+    eprintln!("  {}", e)
+  })
+}
+
+// ----------------------------------------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests;
