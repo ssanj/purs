@@ -250,10 +250,12 @@ async fn handle_program(config: &Config) -> R<ProgramStatus> {
     let valid_selection = handle_user_selection_tui(pull_requests.clone())?;
     match valid_selection {
       ValidSelection::Quit => Ok(ProgramStatus::UserQuit),
-      ValidSelection::Pr(pr) => {
+      ValidSelection::Pr(mode, pr ) => {
         let ssh_url = pr.ssh_url.clone();
         let checkout_path = RepoCheckoutPath::new(get_extract_path(config, &pr)?);
         let branch_name = pr.branch_name;
+
+        println!("mode: {}", mode);
 
         clone_branch(ssh_url, checkout_path.clone(), branch_name)?;
         write_diff_files(checkout_path.as_ref(), &pr.diffs)?;

@@ -334,7 +334,7 @@ pub enum ProgramStatus {
 
 pub enum ValidSelection {
   Quit,
-  Pr(Box<ValidatedPullRequest>)
+  Pr(Mode, Box<ValidatedPullRequest>)
 }
 
 #[derive(Debug,Clone)]
@@ -922,6 +922,24 @@ impl fmt::Display for AvatarInfo {
         write!(f, "user_id:{}, avatar_url:{}, avatar_cache_dir:{}", self.0, self.1, self.2)
     }
 }
+
+pub enum Mode {
+  Review,
+  Edit
+}
+
+impl fmt::Display for Mode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      let result = match self {
+        Mode::Review =>  "Mode.Review",
+        Mode::Edit => "Mode.Edit"
+      };
+
+      write!(f, "{}", result)
+    }
+}
+
+
 
 // ---------------------------------------------------------------------------------------------
 

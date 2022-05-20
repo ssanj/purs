@@ -19,7 +19,7 @@ use tui::{
     Frame, Terminal,
 };
 
-use crate::{console::*, model::{ValidatedPullRequest, PursError, UserInputError, R, ValidSelection, NestedError, Reviews, ReviewState, User}};
+use crate::{console::*, model::{ValidatedPullRequest, PursError, UserInputError, R, ValidSelection, NestedError, Reviews, ReviewState, User, Mode}};
 
 pub fn render_tui(items: Vec<ValidatedPullRequest>) -> R<ValidSelection> {
     // setup terminal
@@ -69,7 +69,12 @@ fn run_app<B: Backend>(
                     KeyCode::Enter => {
                       let result = app.items.get_selected();
                       let selection_error = PursError::UserError(UserInputError::InvalidNumber("Could not match selected index".to_owned()));
-                      return result.map(|valid_pr| ValidSelection::Pr(Box::new(valid_pr))).ok_or(selection_error)
+                      return result.map(|valid_pr| ValidSelection::Pr(Mode::Review, Box::new(valid_pr))).ok_or(selection_error)
+                    },
+                    KeyCode::Char('e')  => {
+                      let result = app.items.get_selected();
+                      let selection_error = PursError::UserError(UserInputError::InvalidNumber("Could not match selected index".to_owned()));
+                      return result.map(|valid_pr| ValidSelection::Pr(Mode::Edit, Box::new(valid_pr))).ok_or(selection_error)
                     },
                     _ => {}
                 }
