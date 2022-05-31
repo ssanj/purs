@@ -206,7 +206,7 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
     details_key_value("Reviewers", sorted_names)
   };
 
-  let pr_diff_no = details_key_value("Changes", pr.diffs.0.len().to_string());
+  let pr_diff_no = details_key_value("Changes", pr.diffs.length().to_string());
 
   let draft = details_key_value("Draft", pr.draft.to_string());
 
@@ -261,7 +261,7 @@ fn pr_line(pr: &ValidatedPullRequest) -> Vec<Span> {
     let labels =
       vec![
         title(&pr.title),
-        pr_size(pr.diffs.0.len()),
+        pr_size(pr.diffs.length()),
         review_activity(pr.reviews.count()),
         comment_activity(pr.comments.count()),
         draft(pr.draft),

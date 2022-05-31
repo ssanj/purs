@@ -1065,6 +1065,7 @@ name = "purs"
 version = "0.3.11"
 dependencies = [
  "ansi_term",
+ "async-trait",
  "base64 0.13.0",
  "chrono",
  "clap",

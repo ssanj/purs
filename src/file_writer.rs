@@ -9,7 +9,7 @@ use std::time::Instant;
 
 
 // TODO: Do we want the diff file to be configurable?
-pub fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
+pub fn write_diff_files(checkout_path: &str, pr_diffs: &PullRequestDiff) -> R<()> {
   println!("Generating diff files...");
 
   let write_start = Instant::now();
@@ -18,7 +18,7 @@ pub fn write_diff_files(checkout_path: &str, diffs: &PullRequestDiff) -> R<()> {
   // TODO: Do we want to wrap this error?
   let mut file_list = File::create(&file_list_path) .unwrap();
 
-  diffs.0.iter().for_each(|d| {
+  pr_diffs.diffs().iter().for_each(|d| {
       writeln!(file_list, "{}.diff", d.file_name).unwrap(); // TODO: Do we want to wrap this error?
 
       let diff_file_name = format!("{}.diff", d.file_name);

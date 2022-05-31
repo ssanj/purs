@@ -37,7 +37,8 @@
 - AvatarCacheDirectory("/Users/sanj/.purs/.assets/.avatars")), AvatarInfo(UserId(3954178), Url("https://
 avatars.githubusercontent.com/u/3954178?v=4"), AvatarCacheDirectory("/Users/sanj/.purs/.assets/.avatar
 s"))}
-
+- replace println! and eprintln! with print_info and print_error(s)
+- consider splitting up model.rs
 
 #### Add
 - Write each run command

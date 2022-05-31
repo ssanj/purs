@@ -63,7 +63,21 @@ impl fmt::Display for ValidatedPullRequest {
 
 
 #[derive(Debug, Clone)]
-pub struct PullRequestDiff(pub Vec<GitDiff>);
+pub struct PullRequestDiff(Vec<GitDiff>);
+
+impl PullRequestDiff {
+  pub fn new(diffs: Vec<GitDiff>) -> Self {
+    PullRequestDiff(diffs)
+  }
+
+  pub fn diffs(&self) -> Vec<GitDiff> {
+    self.0.clone()
+  }
+
+  pub fn length(&self) -> usize {
+    self.0.len()
+  }
+}
 
 impl fmt::Display for PullRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -110,6 +124,17 @@ impl Display for Repo {
 
 #[derive(Clone, Debug)]
 pub struct OwnerRepo(pub Owner, pub Repo);
+
+impl OwnerRepo {
+
+  pub fn owner(&self) -> Owner {
+    self.0.clone()
+  }
+
+  pub fn repo(&self) -> Repo {
+    self.1.clone()
+  }
+}
 
 impl Display for OwnerRepo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -189,7 +214,8 @@ pub struct AsyncPullRequestParts {
     pub pull: octocrab::models::pulls::PullRequest,
     pub reviews_handle: JoinHandle<R<Reviews>>,
     pub comments_handle: JoinHandle<R<Comments>>,
-    pub diffs_handle: JoinHandle<R<PullRequestDiff>>
+    pub diffs_handle: Option<JoinHandle<R<PullRequestDiff>>>,
+    pub diff_string_handle: Option<JoinHandle<R<DiffString>>>
 }
 
 #[derive(Debug)]
@@ -948,6 +974,20 @@ impl Mode {
   }
 }
 
+#[derive(Debug, Clone)]
+pub struct DiffString(String);
+
+impl DiffString {
+  pub fn new(diff_string: String) -> Self {
+    DiffString(diff_string)
+  }
+}
+
+impl fmt::Display for DiffString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 
 // ---------------------------------------------------------------------------------------------
