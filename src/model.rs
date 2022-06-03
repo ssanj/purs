@@ -3,6 +3,7 @@ use std::ffi::OsStr;
 use std::path::{PathBuf, Path};
 use std::fmt::{self, Display};
 use std::error::Error;
+use futures::stream::futures_unordered::IntoIter;
 use tokio::task::JoinHandle;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
@@ -10,6 +11,7 @@ use std::collections::HashMap;
 use crate::tools::group_by;
 use octocrab::models::User as OctoUser;
 use octocrab::models::pulls::Comment as OctoComment;
+use octocrab::models::pulls::PullRequest as OctoPullRequest;
 
 pub type R<T> = Result<T, PursError>;
 
@@ -33,6 +35,37 @@ pub struct PullRequest {
     pub draft: Option<bool>,
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PursPullRequest {
+    pub title : String,
+    pub pr_number : u64,
+    pub ssh_url: Option<String>,
+    pub repo_name: Option<String>,
+    pub branch_name: String,
+    pub head_sha: String,
+    pub base_sha: String,
+    pub draft: Option<bool>,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+impl From<OctoPullRequest> for PursPullRequest {
+  fn from(pull: OctoPullRequest) -> Self {
+      PursPullRequest {
+        title: pull.title.clone().unwrap_or_else(|| "-".to_string()),
+        pr_number: pull.number,
+        ssh_url: pull.head.repo.clone().and_then(|r| (r.ssh_url)),
+        repo_name: pull.head.repo.clone().and_then(|r| r.full_name),
+        branch_name: pull.head.ref_field,
+        head_sha: pull.head.sha,
+        base_sha: pull.base.sha,
+        draft: pull.draft,
+        created_at: pull.created_at,
+        updated_at: pull.updated_at,
+      }
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -989,6 +1022,32 @@ impl fmt::Display for DiffString {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct PursPage<T> {
+    items: Vec<T>,
+    incomplete_results: Option<bool>,
+    total_count: Option<u64>,
+    next: Option<Url>,
+    prev: Option<Url>,
+    first: Option<Url>,
+    last: Option<Url>,
+}
+
+impl <T, U> From<octocrab::Page<T>> for PursPage<U>
+  where U: From<T>
+{
+  fn from(octo_page: octocrab::Page<T>) -> Self {
+      PursPage {
+        items: octo_page.items.into_iter().map(|i| U::from(i)).collect(),
+        incomplete_results: octo_page.incomplete_results,
+        total_count: octo_page.total_count,
+        next: octo_page.next.map(Url::from),
+        prev: octo_page.prev.map(Url::from),
+        first: octo_page.first.map(Url::from),
+        last: octo_page.last.map(Url::from),
+      }
+  }
+}
 
 // ---------------------------------------------------------------------------------------------
 

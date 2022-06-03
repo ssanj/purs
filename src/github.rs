@@ -18,7 +18,7 @@ type PullRequestsAndOwner = R<Vec<(octocrab::Page<octocrab::models::pulls::PullR
 pub trait GitHubT {
   async fn get_prs(&'static self, config: &Config) -> R<Vec<PullRequest>>;
   async fn get_reviews(&self, owner_repo: OwnerRepo, pr_no: u64) -> R<Reviews>;
-  async fn get_pulls(&self, owner_repo: OwnerRepo) -> R<PullRequest>;
+  async fn get_pulls(&self, owner_repo: OwnerRepo) -> R<PursPage<PursPullRequest>>;
   async fn get_diffs(&self, owner_repo: OwnerRepo, pr_no: u64) -> R<DiffString>;
   // async fn get_diffs(&self, owner: Owner, repo: Repo, pr_no: u64) -> R<PullRequestDiff>;
   async fn get_comments(&self, owner_repo: OwnerRepo, pr_no: u64) -> R<Comments>;
@@ -251,7 +251,25 @@ impl GitHubT for OctocrabGitHub {
     }
   }
 
-  async fn get_pulls(&self, owner_repo: OwnerRepo) -> R<PullRequest> {todo!() }
+  async fn get_pulls(&self, owner_repo: OwnerRepo) -> R<PursPage<PursPullRequest>> {
+    let octocrab = self.api.clone();
+
+    //TODO: Accept parameters for the state/sort/per_page etc
+    let OwnerRepo(owner, repo) = owner_repo;
+    let result =
+      octocrab
+        .pulls(owner.0.to_owned(), repo.0.to_owned())
+        .list()
+        .state(params::State::Open)
+        .sort(params::pulls::Sort::Created)
+        .direction(params::Direction::Descending)
+        .per_page(20)
+        .send()
+        .await
+        .map_err( PursError::from);
+
+    result.map(PursPage::from)
+  }
 }
 
 //-------------------------------------------------------------------------------------------
