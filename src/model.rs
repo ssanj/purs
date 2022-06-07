@@ -47,6 +47,7 @@ pub struct PursPullRequest {
     pub head_sha: String,
     pub base_sha: String,
     pub draft: Option<bool>,
+    pub user: Option<User>,
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -62,6 +63,7 @@ impl From<OctoPullRequest> for PursPullRequest {
         head_sha: pull.head.sha,
         base_sha: pull.base.sha,
         draft: pull.draft,
+        user: pull.user.map(User::from()),
         created_at: pull.created_at,
         updated_at: pull.updated_at,
       }
@@ -248,6 +250,14 @@ pub struct AsyncPullRequestParts {
     pub reviews_handle: JoinHandle<R<Reviews>>,
     pub comments_handle: JoinHandle<R<Comments>>,
     pub diffs_handle: Option<JoinHandle<R<PullRequestDiff>>>,
+    pub diff_string_handle: Option<JoinHandle<R<DiffString>>>
+}
+
+pub struct AsyncPullRequestParts2 {
+    pub owner_repo: OwnerRepo,
+    pub pull: PursPullRequest,
+    pub reviews_handle: JoinHandle<R<Reviews>>,
+    pub comments_handle: JoinHandle<R<Comments>>,
     pub diff_string_handle: Option<JoinHandle<R<DiffString>>>
 }
 
@@ -1047,6 +1057,15 @@ impl <T, U> From<octocrab::Page<T>> for PursPage<U>
         last: octo_page.last.map(Url::from),
       }
   }
+}
+
+impl <T> IntoIterator for PursPage<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.items.into_iter()
+    }
 }
 
 // ---------------------------------------------------------------------------------------------

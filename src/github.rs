@@ -12,7 +12,9 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 
 type PageHandles = Vec<tokio::task::JoinHandle<Result<(octocrab::Page<octocrab::models::pulls::PullRequest>, OwnerRepo), PursError>>>;
+type PageHandles2 = Vec<tokio::task::JoinHandle<R<(PursPage<PursPullRequest>, OwnerRepo)>>>;
 type PullRequestsAndOwner = R<Vec<(octocrab::Page<octocrab::models::pulls::PullRequest>, OwnerRepo)>>;
+type PullRequestsAndOwner2 = R<Vec<(PursPage<PursPullRequest>, OwnerRepo)>>;
 
 #[async_trait]
 pub trait GitHubT {
@@ -30,16 +32,16 @@ struct OctocrabGitHub {
 }
 
 impl OctocrabGitHub {
-  async fn get_pull_requests_with_owner(&self, config: &Config) -> PullRequestsAndOwner {
-    let page_handles:PageHandles  =
+  async fn get_pull_requests_with_owner(&'static self, config: &Config) -> PullRequestsAndOwner2 {
+    let page_handles:PageHandles2  =
       config
       .repositories
       .to_vec()
       .into_iter()
       .map(|owner_repo| {
         tokio::task::spawn(
-      get_pulls(
-              self.api.clone(), owner_repo.clone()
+      self.get_pulls(
+              owner_repo.clone()
             )
             .map(|hr| { hr.map(|h| (h, owner_repo)) }) //write a help function for this
         )
@@ -60,26 +62,25 @@ impl OctocrabGitHub {
     Ok(page_repos)
   }
 
-  fn enhance_pull_request(&'static self, page_repos: &Vec<(Page<octocrab::models::pulls::PullRequest>, OwnerRepo)>) -> Vec<AsyncPullRequestParts> {
+  fn enhance_pull_request(&'static self, page_repos: &Vec<(PursPage<PursPullRequest>, OwnerRepo)>) -> Vec<AsyncPullRequestParts2> {
     let async_parts = page_repos.iter().map(|(page, owner_repo)| {
             page.into_iter().map(|pull| {
-                let pr_no = pull.number;
+                let pr_no = pull.pr_number;
                 let reviews_handle = tokio::spawn(self.get_reviews(owner_repo.clone(), pr_no));
                 let comments_handle = tokio::spawn(self.clone().get_comments(owner_repo.clone(), pr_no));
                 let diff_string_handle = tokio::spawn(self.clone().get_diffs(owner_repo.clone(), pr_no));
 
-                AsyncPullRequestParts {
+                AsyncPullRequestParts2 {
                     owner_repo: owner_repo.clone(),
                     pull: pull.clone(),
                     reviews_handle,
                     comments_handle,
-                    diffs_handle: None, //TODO: Fix
                     diff_string_handle: Some(diff_string_handle)
                 }
             }).collect::<Vec<_>>()
     });
 
-    let parts: Vec<AsyncPullRequestParts> = async_parts.flatten().collect::<Vec<_>>();
+    let parts: Vec<AsyncPullRequestParts2> = async_parts.flatten().collect::<Vec<_>>();
     parts
   }
 }
@@ -187,7 +188,7 @@ impl GitHubT for OctocrabGitHub {
     let parts_stream = stream::iter(parts);
 
     let pr_stream =
-        parts_stream.then(|AsyncPullRequestParts { owner_repo, pull, reviews_handle, comments_handle, diffs_handle, diff_string_handle }|{
+        parts_stream.then(|AsyncPullRequestParts2 { owner_repo, pull, reviews_handle, comments_handle, diff_string_handle }|{
             async move {
                 let res = tokio::try_join!(
                     flatten(reviews_handle),
@@ -198,13 +199,13 @@ impl GitHubT for OctocrabGitHub {
                 match res {
                   Ok((reviews, comments, diff_string)) => {
 
-                    let pr_no = pull.number;
-                    let title = pull.title.clone().unwrap_or_else(|| "-".to_string());
-                    let ssh_url = pull.head.repo.clone().and_then(|r| (r.ssh_url));
-                    let head_sha = pull.head.sha;
-                    let repo_name = pull.head.repo.clone().and_then(|r| r.full_name);
-                    let branch_name = pull.head.ref_field;
-                    let base_sha = pull.base.sha;
+                    let pr_no = pull.pr_number;
+                    let title = pull.title;
+                    let ssh_url = pull.head;
+                    let head_sha = pull.head_sha;
+                    let repo_name = pull.head_repo;
+                    let branch_name = pull.branch_name;
+                    let base_sha = pull.base_sha;
                     let config_owner_repo = owner_repo;
                     let draft = pull.draft;
                     let created_at = pull.created_at;
