@@ -62,8 +62,9 @@ impl OctocrabGitHub {
     Ok(page_repos)
   }
 
-  fn enhance_pull_request(&'static self, page_repos: &Vec<(PursPage<PursPullRequest>, OwnerRepo)>) -> Vec<AsyncPullRequestParts2> {
-    let async_parts = page_repos.iter().map(|(page, owner_repo)| {
+  fn enhance_pull_request(&'static self, page_repos_ref: &Vec<(PursPage<PursPullRequest>, OwnerRepo)>) -> Vec<AsyncPullRequestParts2> {
+    let page_repos = page_repos_ref.clone();
+    let async_parts = page_repos.into_iter().map(|(page, owner_repo)| {
             page.into_iter().map(|pull| {
                 let pr_no = pull.pr_number;
                 let reviews_handle = tokio::spawn(self.get_reviews(owner_repo.clone(), pr_no));
@@ -201,16 +202,16 @@ impl GitHubT for OctocrabGitHub {
 
                     let pr_no = pull.pr_number;
                     let title = pull.title;
-                    let ssh_url = pull.head;
+                    let ssh_url = pull.ssh_url;
                     let head_sha = pull.head_sha;
-                    let repo_name = pull.head_repo;
+                    let repo_name = pull.repo_name;
                     let branch_name = pull.branch_name;
                     let base_sha = pull.base_sha;
                     let config_owner_repo = owner_repo;
                     let draft = pull.draft;
                     let created_at = pull.created_at;
                     let updated_at = pull.updated_at;
-                    let pr_owner = create_user(pull.user.clone().as_deref());
+                    let pr_owner = pull.user.clone();
                     let diffs =  parse_diffs(diff_string)?;
 
                     let pr =
@@ -335,7 +336,7 @@ pub async fn get_prs3(config: &Config, octocrab: Octocrab) -> R<Vec<PullRequest>
     let parts_stream = stream::iter(parts);
 
     let pr_stream =
-        parts_stream.then(|AsyncPullRequestParts { owner_repo, pull, reviews_handle, comments_handle, diffs_handle, diff_string_handle }|{
+        parts_stream.then(|AsyncPullRequestParts { owner_repo, pull, reviews_handle, comments_handle, diffs_handle, diff_string_handle: _ }|{
             async move {
                 let res = tokio::try_join!(
                     flatten(reviews_handle),

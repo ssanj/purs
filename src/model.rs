@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::ffi::OsStr;
+use std::ops::Deref;
 use std::path::{PathBuf, Path};
 use std::fmt::{self, Display};
 use std::error::Error;
@@ -63,7 +64,7 @@ impl From<OctoPullRequest> for PursPullRequest {
         head_sha: pull.head.sha,
         base_sha: pull.base.sha,
         draft: pull.draft,
-        user: pull.user.map(User::from()),
+        user: pull.user.map(|bu| User::from(bu.deref())),
         created_at: pull.created_at,
         updated_at: pull.updated_at,
       }
@@ -1033,6 +1034,7 @@ impl fmt::Display for DiffString {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PursPage<T> {
     items: Vec<T>,
     incomplete_results: Option<bool>,
