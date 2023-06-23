@@ -6,6 +6,7 @@ use model::*;
 mod avatar;
 mod model;
 mod tools;
+mod log;
 
 #[tokio::main]
 async fn main() {
