@@ -95,16 +95,24 @@ pub async fn save_avatar_data(avatar_cache_file: &AvatarCacheFile, avatar_data: 
 
 pub async fn get_avatars(comments: &Comments, avatar_cache_directory: &AvatarCacheDirectory) -> R<HashMap<Url, FileUrl>> {
   let mut unique_gravatar_urls: HashSet<AvatarInfo> = HashSet::new();
-  comments.comments.iter().for_each(|c| {
-    let avatar =
-      AvatarInfo::new(
-        c.author.clone().user_id(),
-        c.author.clone().gravatar_url(),
-        avatar_cache_directory.clone()
-      );
+  comments
+    .comments
+    .iter()
+    .for_each(|c| {
+      c
+        .author
+        .iter()
+        .for_each(|author| {
+          let avatar =
+            AvatarInfo::new(
+              author.clone().user_id(),
+              author.clone().gravatar_url(),
+              avatar_cache_directory.clone()
+            );
 
-    unique_gravatar_urls.insert(avatar);
-  });
+          unique_gravatar_urls.insert(avatar);
+        })
+    });
 
   let url_data_handles = unique_gravatar_urls.into_iter().map(|u| {
     tokio::task::spawn(get_avatar_from_cache(u))

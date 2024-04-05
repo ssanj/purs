@@ -177,24 +177,30 @@ async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u6
         .list_reviews(pr_no)
         .await?;
 
-   let reviews = gh_reviews.into_iter().map(|r| {
+   let reviews =
+    gh_reviews
+      .into_iter()
+      .map(|r| {
+        let user =
+          r
+            .user
+            .map(|u| u.login);
 
-    let user = r.user.login;
-    let comment = r.body;
-    let state = match r.state {
-      Some(GHReviewState::Approved)         => ReviewState::Approved,
-      Some(GHReviewState::Pending)          => ReviewState::Pending,
-      Some(GHReviewState::ChangesRequested) => ReviewState::ChangesRequested,
-      Some(GHReviewState::Commented)        => ReviewState::Commented,
-      Some(GHReviewState::Dismissed)        => ReviewState::Dismissed,
-      _                                     => ReviewState::Other   //octocrab::models::pulls::ReviewState is non_exhaustive, so we need this wildcard match
-    };
+        let comment = r.body;
+        let state = match r.state {
+          Some(GHReviewState::Approved)         => ReviewState::Approved,
+          Some(GHReviewState::Pending)          => ReviewState::Pending,
+          Some(GHReviewState::ChangesRequested) => ReviewState::ChangesRequested,
+          Some(GHReviewState::Commented)        => ReviewState::Commented,
+          Some(GHReviewState::Dismissed)        => ReviewState::Dismissed,
+          _                                     => ReviewState::Other   //octocrab::models::pulls::ReviewState is non_exhaustive, so we need this wildcard match
+        };
 
-    Review {
-        user,
-        comment,
-        state
-    }
+        Review {
+            user,
+            comment,
+            state
+        }
    }).collect::<Vec<_>>();
 
     Ok(
@@ -216,6 +222,7 @@ async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64)
     let comments =
       comments.into_iter().map(|c| {
         let author = User::from_comment(c.clone());
+
         let file_name = FileName::new(c.path);
 
         Comment {

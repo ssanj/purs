@@ -564,7 +564,7 @@ pub enum ReviewState {
 
 #[derive(Debug, Clone)]
 pub struct Review {
-  pub user: String,
+  pub user: Option<String>,
   pub comment: Option<String>,
   pub state: ReviewState
 }
@@ -581,7 +581,11 @@ impl Reviews {
 
 
   pub fn reviewer_names(&self) -> HashSet<String> {
-    self.reviews.iter().map(|r| r.user.clone()).collect()
+    self
+      .reviews
+      .iter()
+      .filter_map(|r| r.user.clone())
+      .collect()
   }
 }
 
@@ -626,7 +630,7 @@ pub struct Comment {
   pub diff_hunk: String,
   pub body: String,
   pub markdown_body: Option<Markdown>,
-  pub author: User,
+  pub author: Option<User>,
   pub comment_url: Url,
   pub line: Option<LineNumber>,
   pub file_name: FileName,
@@ -730,12 +734,17 @@ impl User {
     self.user_id
   }
 
-  pub fn from_comment(comment: OctoComment) -> Self {
-    User::new(
-    comment.user.login,
-    Url::from(comment.user.avatar_url),
-    UserId::new(comment.user.id.0))
-    }
+  pub fn from_comment(comment: OctoComment) -> Option<User> {
+    comment
+      .user
+      .map(|u| {
+        User::new(
+          u.login,
+          Url::from(u.avatar_url),
+          UserId::new(u.id.0)
+        )
+      })
+  }
 }
 
 
@@ -794,9 +803,9 @@ impl CommentJson {
   pub fn grouped_by_line_2(comments: Comments, avatars: HashMap<Url, FileUrl>) -> Vec<FileCommentsJson> {
     let comments_with_lines = comments.comments.into_iter().filter_map(|c|{
         c.line.map(|cl|{
-          let op_file_url = avatars.get(&c.author.gravatar);
+          let op_file_url = &c.author.as_ref().and_then(|a| avatars.get(&a.gravatar));
           CommentJson {
-            user_name: c.author.name,
+            user_name: c.author.map_or_else(|| "N/A".to_owned(), |a| a.name),
             user_icon: op_file_url.map(|file_url| file_url.to_string()).unwrap_or_else(|| "file://".to_owned()), //TODO: Have a better default
             link: c.comment_url.0,
             line: cl.0,
