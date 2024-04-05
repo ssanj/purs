@@ -175,6 +175,9 @@ async fn get_reviews2(octocrab:  Octocrab, owner:  Owner, repo:  Repo, pr_no: u6
         octocrab
         .pulls(owner.0.to_owned(), repo.0.to_owned())
         .list_reviews(pr_no)
+        .per_page(100)
+        .page(0u32)
+        .send()
         .await?;
 
    let reviews =
@@ -220,22 +223,23 @@ async fn get_comments2(octocrab: Octocrab, owner: Owner, repo: Repo, pr_no: u64)
         .await?;
 
     let comments =
-      comments.into_iter().map(|c| {
-        let author = User::from_comment(c.clone());
+      comments
+        .into_iter().map(|c| {
+          let author = User::from_comment(c.clone());
 
-        let file_name = FileName::new(c.path);
+          let file_name = FileName::new(c.path);
 
-        Comment {
-          comment_id: CommentId::new(c.id.0),
-          diff_hunk: c.diff_hunk,
-          body: c.body,
-          markdown_body: None, //this will be filled only for the selected PR's comment
-          line: c.line.map(LineNumber::new),
-          in_reply_to_id: c.in_reply_to_id.map(CommentId::new),
-          comment_url: Url::new(c.html_url),
-          author,
-          file_name
-        }
+          Comment {
+            comment_id: CommentId::new(c.id.0),
+            diff_hunk: c.diff_hunk,
+            body: c.body,
+            markdown_body: None, //this will be filled only for the selected PR's comment
+            line: c.line.map(LineNumber::new),
+            in_reply_to_id: c.in_reply_to_id.map(|id| CommentId::new(id.0)),
+            comment_url: Url::new(c.html_url),
+            author,
+            file_name
+          }
       }).collect();
 
 
@@ -296,7 +300,7 @@ fn parse_only_file_name(diff_file: &str) -> String {
     file_name
 }
 
-fn create_user(user: Option<&octocrab::models::User>) -> Option<User> {
+fn create_user(user: Option<&octocrab::models::Author>) -> Option<User> {
   user.map(From::from)
 }
 

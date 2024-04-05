@@ -1,0 +1,9 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+  cargo watch -x 'test --message-format json-diagnostic-rendered-ansi 2>&1 | quiet --items 1'
+else
+  cargo watch -x 'test '"$1"' --message-format json-diagnostic-rendered-ansi 2>&1 | quiet --items 1'
+fi
+
+

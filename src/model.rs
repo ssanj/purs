@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use std::collections::HashMap;
 use crate::tools::group_by;
-use octocrab::models::User as OctoUser;
+use octocrab::models::Author;
 use octocrab::models::pulls::Comment as OctoComment;
 
 pub type R<T> = Result<T, PursError>;
@@ -748,9 +748,9 @@ impl User {
 }
 
 
-impl From<&OctoUser> for User {
-  fn from(octo_user: &OctoUser) -> Self {
-    let user = octo_user.clone();
+impl From<&Author> for User {
+  fn from(author: &Author) -> Self {
+    let user = author.clone();
     User::new(
       user.login.clone(),
       Url::from(user.avatar_url),
