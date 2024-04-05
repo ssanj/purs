@@ -1,4 +1,4 @@
-use tui::{self, widgets};
+use ratatui::{self, widgets};
 
 pub struct StatefulList<T> {
   pub state: widgets::ListState,

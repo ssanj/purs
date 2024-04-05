@@ -10,11 +10,11 @@ use std::{
     time::{Duration, Instant}, fmt::Display,
 };
 
-use tui::{
+use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout, Alignment},
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::{Span, Line},
     widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
     Frame, Terminal,
 };
@@ -54,7 +54,7 @@ fn run_app<B: Backend>(
 ) -> R<ValidSelection> {
     let mut last_tick = Instant::now();
     loop {
-        terminal.draw(|f| ui(f, &mut app)).map_err(|e| PursError::TUIError(NestedError::from(e)))?;
+        terminal.draw(|f| ui::<B>(f, &mut app)).map_err(|e| PursError::TUIError(NestedError::from(e)))?;
 
         let timeout = tick_rate
             .checked_sub(last_tick.elapsed())
@@ -87,7 +87,7 @@ fn run_app<B: Backend>(
     }
 }
 
-fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ValidatedPullRequest>)
+fn ui<B: Backend>(f: &mut Frame<'_>, app: &mut App<ValidatedPullRequest>)
 {
     // Create two chunks with equal horizontal screen space
     let chunks = Layout::default()
@@ -101,16 +101,18 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ValidatedPullRequest>)
         .items
         .iter()
         .map(|i| {
-            let lines =
-              vec![
-                  Spans::from(""),
-                  Spans::from(pr_line(i)),
-                ];
+          let mut pr_lines: Vec<Span<'_>> = pr_line(i);
+          pr_lines.insert(0, Span::from(""));
 
-            ListItem::new(lines)
-              .style(
-                Style::default()
-              )
+          let lines =
+            Line
+              ::default()
+              .spans(pr_lines);
+
+          ListItem::new(lines)
+            .style(
+              Style::default()
+            )
         })
         .collect();
 
@@ -161,7 +163,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App<ValidatedPullRequest>)
 }
 
 
-fn no_pr_details<'a>() -> Vec<Spans<'a>> {
+fn no_pr_details<'a>() -> Vec<Line<'a>> {
   vec![
     help_line("How to to use purs"),
     help_line("------------------"),
@@ -173,18 +175,12 @@ fn no_pr_details<'a>() -> Vec<Spans<'a>> {
   ]
 }
 
-fn help_line(message: &str) -> Spans {
+fn help_line<'a>(message: &'a str) -> Line<'a> {
   let style = Style::default().fg(Color::Yellow);
-    Spans::from(
-      vec![
-       Span::styled(message, style)
-     ]
-    )
-  }
+  Line::styled(message, style)
+}
 
-fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
-
-
+fn pr_details<'a>(pr: &ValidatedPullRequest) -> Vec<Line<'a>> {
   let owner_repo = details_key_value("Base Repository", pr.config_owner_repo.to_string());
   let title = details_key_value("Title", pr.title.clone());
   let pr_no = details_key_value("PR#", pr.pr_number.to_string());
@@ -212,26 +208,35 @@ fn pr_details(pr: &ValidatedPullRequest) -> Vec<Spans> {
 
   let pr_owner = details_key_value("Owner", get_pr_owner(pr.pr_owner.clone()));
 
-  vec![
-    Spans::from(""),
-    Spans::from(created_at),
-    Spans::from(updated_at),
-    Spans::from(owner_repo),
-    Spans::from(title),
-    Spans::from(pr_owner),
-    Spans::from(pr_no),
-    Spans::from(pr_url),
-    Spans::from(pr_repo),
-    Spans::from(pr_branch),
-    Spans::from(head_sha),
-    Spans::from(base_sha),
-    Spans::from(comment_no),
-    Spans::from(review_no),
-    Spans::from(reviewer_names),
-    Spans::from(pr_diff_no),
-    Spans::from(draft),
-  ]
+  let span_lines =
+    vec![
+      created_at,
+      updated_at,
+      owner_repo,
+      title,
+      pr_owner,
+      pr_no,
+      pr_url,
+      pr_repo,
+      pr_branch,
+      head_sha,
+      base_sha,
+      comment_no,
+      review_no,
+      reviewer_names,
+      pr_diff_no,
+      draft,
+    ];
 
+  let lines =
+    span_lines
+        .into_iter()
+        .map(|span_line| {
+          Line::default().spans(span_line)
+        })
+        .collect::<Vec<_>>();
+
+  lines
 }
 
 fn get_pr_owner(owner_option: Option<User>) -> String {
